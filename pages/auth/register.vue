@@ -183,7 +183,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
+import { useAuth } from '~/composables/useAuth'
+
+interface ToastRef {
+  value: {
+    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
+  } | null
+}
 
 // State
 const firstName = ref('')
@@ -196,23 +203,36 @@ const showPassword = ref(false)
 const acceptTerms = ref(false)
 const isLoading = ref(false)
 
+// Get toast component instance
+const toastRef = inject<ToastRef>('toast')
+
 // Methods
 const handleRegister = async () => {
-  if (!firstName.value || !lastName.value || !username.value || !email.value || !password.value || !confirmPassword.value || !acceptTerms.value) return
+  if (!firstName.value || !lastName.value || !username.value || !email.value || !password.value || !confirmPassword.value || !acceptTerms.value) {
+    toastRef?.value?.addToast('error', 'Please fill in all required fields')
+    return
+  }
+  
   if (password.value !== confirmPassword.value) {
-    // TODO: Show error message
-    console.log('Password and confirm password do not match')
+    toastRef?.value?.addToast('error', 'Passwords do not match')
     return
   }
 
   isLoading.value = true
   try {
-    // TODO: Implement registration functionality
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    // Show success message and redirect
+    const auth = useAuth()
+    await auth.register({
+      firstName: firstName.value,
+      lastName: lastName.value,
+      username: username.value,
+      email: email.value,
+      password: password.value,
+    })
+    
+    toastRef?.value?.addToast('success', 'Account created successfully')
     navigateTo('/')
   } catch (error) {
-    // Show error message
+    toastRef?.value?.addToast('error', 'Registration failed. Please try again.')
     console.error('Registration failed:', error)
   } finally {
     isLoading.value = false
@@ -220,13 +240,11 @@ const handleRegister = async () => {
 }
 
 const handleGoogleSignUp = async () => {
-  // TODO: Implement Google sign up
-  console.log('Google sign up')
+  toastRef?.value?.addToast('info', 'Google sign up coming soon!')
 }
 
 const handleGithubSignUp = async () => {
-  // TODO: Implement GitHub sign up
-  console.log('GitHub sign up')
+  toastRef?.value?.addToast('info', 'GitHub sign up coming soon!')
 }
 
 // Page meta

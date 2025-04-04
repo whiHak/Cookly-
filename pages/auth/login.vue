@@ -6,11 +6,11 @@
           <img src="/images/logo.svg" alt="Food Recipe" class="h-8 w-auto" />
           Food Recipe
         </NuxtLink>
-        <h2 class="mt-6 text-2xl font-bold">Welcome back</h2>
+        <h2 class="mt-6 text-2xl font-bold">Sign in to your account</h2>
         <p class="mt-2 text-sm text-muted-foreground">
           Don't have an account?
           <NuxtLink to="/auth/register" class="font-medium text-primary hover:text-primary/90">
-            Sign up
+            Create one
           </NuxtLink>
         </p>
       </div>
@@ -26,7 +26,7 @@
                 type="email"
                 required
                 class="block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="Enter your email"
+                placeholder="john@example.com"
               />
             </div>
           </div>
@@ -57,10 +57,7 @@
                 Show password
               </label>
             </div>
-            <NuxtLink
-              to="/auth/forgot-password"
-              class="text-sm font-medium text-primary hover:text-primary/90"
-            >
+            <NuxtLink to="/auth/forgot-password" class="text-sm font-medium text-primary hover:text-primary/90">
               Forgot password?
             </NuxtLink>
           </div>
@@ -80,7 +77,7 @@
           </button>
         </div>
 
-        <!-- Social Login -->
+        <!-- Social Sign In -->
         <div class="relative mt-8">
           <div class="absolute inset-0 flex items-center">
             <div class="w-full border-t"></div>
@@ -94,7 +91,7 @@
           <button
             type="button"
             class="flex w-full items-center justify-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-            @click="handleGoogleLogin"
+            @click="handleGoogleSignIn"
           >
             <Icon name="lucide:chrome" class="h-4 w-4" />
             Google
@@ -102,7 +99,7 @@
           <button
             type="button"
             class="flex w-full items-center justify-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-            @click="handleGithubLogin"
+            @click="handleGithubSignIn"
           >
             <Icon name="lucide:github" class="h-4 w-4" />
             GitHub
@@ -114,7 +111,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
+import { useAuth } from '~/composables/useAuth'
+
+interface ToastRef {
+  value: {
+    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
+  } | null
+}
 
 // State
 const email = ref('')
@@ -122,32 +126,40 @@ const password = ref('')
 const showPassword = ref(false)
 const isLoading = ref(false)
 
+// Get toast component instance
+const toastRef = inject<ToastRef>('toast')
+
 // Methods
 const handleLogin = async () => {
-  if (!email.value || !password.value) return
+  if (!email.value || !password.value) {
+    toastRef?.value?.addToast('error', 'Please fill in all required fields')
+    return
+  }
 
   isLoading.value = true
   try {
-    // TODO: Implement login functionality
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    // Show success message and redirect
+    const auth = useAuth()
+    await auth.login({
+      email: email.value,
+      password: password.value,
+    })
+    
+    toastRef?.value?.addToast('success', 'Signed in successfully')
     navigateTo('/')
   } catch (error) {
-    // Show error message
+    toastRef?.value?.addToast('error', 'Login failed. Please check your credentials and try again.')
     console.error('Login failed:', error)
   } finally {
     isLoading.value = false
   }
 }
 
-const handleGoogleLogin = async () => {
-  // TODO: Implement Google login
-  console.log('Google login')
+const handleGoogleSignIn = async () => {
+  toastRef?.value?.addToast('info', 'Google sign in coming soon!')
 }
 
-const handleGithubLogin = async () => {
-  // TODO: Implement GitHub login
-  console.log('GitHub login')
+const handleGithubSignIn = async () => {
+  toastRef?.value?.addToast('info', 'GitHub sign in coming soon!')
 }
 
 // Page meta
@@ -156,7 +168,7 @@ useHead({
   meta: [
     {
       name: 'description',
-      content: 'Sign in to your Food Recipe account to share and discover amazing recipes.'
+      content: 'Sign in to your Food Recipe account to access your recipes and more.'
     }
   ]
 })
