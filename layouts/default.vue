@@ -68,10 +68,10 @@
               @click="isUserMenuOpen = !isUserMenuOpen"
             >
               <img 
-                :src="user.avatar || '/images/default-avatar.png'" 
-                :alt="user.username"
+                :src="user?.avatar || '/images/default-avatar.png'" 
+                :alt="user?.username"
                 class="h-8 w-8 rounded-full object-cover"
-              />
+             />
               <Icon 
                 name="lucide:chevron-down" 
                 class="h-4 w-4"
@@ -85,7 +85,7 @@
             >
               <div class="py-1">
                 <NuxtLink 
-                  :to="`/profile/${user.username}`"
+                  :to="`/profile/${user?.username}`"
                   class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                 >
                   Profile
@@ -325,9 +325,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue'
 import { useEventListener, onClickOutside } from '@vueuse/core'
+import { useUserStore } from '~/stores/useUserStore'
 
 interface Recipe {
   id: number
@@ -379,8 +380,12 @@ const categories = ref<Category[]>([
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
 
+// User store
+const userStore = useUserStore()
+const isAuthenticated = computed(() => userStore.isAuthenticated)
+const user = computed(() => userStore.user)
+
 // State
-const isAuthenticated = ref(false)
 const isUserMenuOpen = ref(false)
 const isMobileMenuOpen = ref(false)
 const isSearchOpen = ref(false)
@@ -389,12 +394,6 @@ const searchResults = ref<Recipe[]>([])
 const isSearching = ref(false)
 const isSubscribing = ref(false)
 const email = ref('')
-
-// Mock user data (replace with actual auth)
-const user = ref({
-  username: 'johndoe',
-  avatar: '/images/default-avatar.png'
-})
 
 // Methods
 const toggleTheme = () => {
@@ -453,7 +452,8 @@ const handleSubscribe = async () => {
 }
 
 const handleLogout = async () => {
-  // TODO: Implement logout
+  userStore.logout()
+  navigateTo('/auth/login')
   isUserMenuOpen.value = false
 }
 
@@ -472,5 +472,10 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
   if (e.key === 'Escape') {
     isSearchOpen.value = false
   }
+})
+
+// Initialize user state from storage
+onMounted(() => {
+  userStore.initializeFromStorage()
 })
 </script> 
