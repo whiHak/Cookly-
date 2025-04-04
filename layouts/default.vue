@@ -68,10 +68,10 @@
               @click="isUserMenuOpen = !isUserMenuOpen"
             >
               <img 
-                :src="user?.avatar || '/images/default-avatar.png'" 
-                :alt="user?.username"
-                class="h-8 w-8 rounded-full object-cover"
-             />
+                :src="user?.avatar || DEFAULT_AVATAR" 
+                :alt="user?.username || 'User'"
+                class="h-8 w-8 rounded-full object-cover bg-muted p-1"
+              />
               <Icon 
                 name="lucide:chevron-down" 
                 class="h-4 w-4"
@@ -83,31 +83,53 @@
               v-if="isUserMenuOpen"
               class="absolute right-0 mt-2 w-48 rounded-md bg-popover text-popover-foreground shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
             >
-              <div class="py-1">
-                <NuxtLink 
-                  :to="`/profile/${user?.username}`"
-                  class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                >
-                  Profile
-                </NuxtLink>
-                <NuxtLink 
-                  to="/recipes/create"
-                  class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                >
-                  Create Recipe
-                </NuxtLink>
-                <NuxtLink 
-                  to="/profile/settings"
-                  class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                >
-                  Settings
-                </NuxtLink>
-                <button 
-                  class="block w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                  @click="handleLogout"
-                >
-                  Logout
-                </button>
+              <div class="p-2">
+                <!-- User Info -->
+                <div class="px-2 py-3 border-b">
+                  <div class="flex items-center gap-3">
+                    <img 
+                      :src="user?.avatar || DEFAULT_AVATAR" 
+                      :alt="user?.username || 'User'"
+                      class="h-10 w-10 rounded-full object-cover bg-muted p-1"
+                    />
+                    <div>
+                      <p class="font-medium">{{ user?.username || 'User' }}</p>
+                      <p class="text-sm text-muted-foreground">{{ user?.email }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Menu Items -->
+                <div class="py-1 mt-1">
+                  <NuxtLink 
+                    :to="`/profile/${user?.username || ''}`"
+                    class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Icon name="lucide:user" class="h-4 w-4" />
+                    Profile
+                  </NuxtLink>
+                  <NuxtLink 
+                    to="/recipes/create"
+                    class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Icon name="lucide:plus-circle" class="h-4 w-4" />
+                    Create Recipe
+                  </NuxtLink>
+                  <NuxtLink 
+                    to="/profile/settings"
+                    class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Icon name="lucide:settings" class="h-4 w-4" />
+                    Settings
+                  </NuxtLink>
+                  <button 
+                    class="flex w-full items-center gap-2 px-2 py-2 text-sm rounded-md text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    @click="handleLogout"
+                  >
+                    <Icon name="lucide:log-out" class="h-4 w-4" />
+                    Logout
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -329,6 +351,7 @@ import { ref, computed, onMounted } from 'vue'
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue'
 import { useEventListener, onClickOutside } from '@vueuse/core'
 import { useUserStore } from '~/stores/useUserStore'
+import { DEFAULT_AVATAR } from '~/constants'
 
 interface Recipe {
   id: number
