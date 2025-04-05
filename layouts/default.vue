@@ -81,7 +81,7 @@
             <!-- Dropdown Menu -->
             <div 
               v-if="isUserMenuOpen"
-              class="absolute right-0 mt-2 w-48 rounded-md bg-popover text-popover-foreground shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+              class="absolute right-0 mt-2 w-max rounded-md bg-popover text-popover-foreground shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
             >
               <div class="p-2">
                 <!-- User Info -->
