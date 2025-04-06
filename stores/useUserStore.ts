@@ -8,6 +8,14 @@ interface User {
   avatar?: string
 }
 
+interface AuthResponse {
+  token: string
+  userID: string
+  username: string
+  email: string
+  fullName: string
+}
+
 export const useUserStore = defineStore('user', {
   state: () => ({
     user: null as User | null,
@@ -25,11 +33,17 @@ export const useUserStore = defineStore('user', {
       this.token = token
     },
 
-    login(userData: { user: User; token: string }) {
-      this.setUser(userData.user)
-      this.setToken(userData.token)
-      localStorage.setItem('token', userData.token)
-      localStorage.setItem('user', JSON.stringify(userData.user))
+    login(response: AuthResponse) {
+      const user: User = {
+        id: response.userID,
+        username: response.username,
+        email: response.email,
+        fullName: response.fullName
+      }
+      this.setUser(user)
+      this.setToken(response.token)
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('user', JSON.stringify(user))
     },
 
     logout() {
@@ -41,11 +55,21 @@ export const useUserStore = defineStore('user', {
 
     initializeFromStorage() {
       const token = localStorage.getItem('token')
-      const user = localStorage.getItem('user')
+      const userStr = localStorage.getItem('user')
 
-      if (token && user) {
-        this.setToken(token)
-        this.setUser(JSON.parse(user))
+      if (token && userStr) {
+        try {
+          const user = JSON.parse(userStr)
+          if (user && typeof user === 'object' && user.id) {
+            this.setToken(token)
+            this.setUser(user)
+          } else {
+            throw new Error('Invalid user data structure')
+          }
+        } catch (e) {
+          console.error('Failed to parse user data from localStorage')
+          this.logout() // Clear invalid data
+        }
       }
     },
   },

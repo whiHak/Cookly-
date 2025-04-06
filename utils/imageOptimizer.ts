@@ -3,17 +3,19 @@ export interface OptimizeImageOptions {
   maxHeight?: number
   quality?: number
   format?: 'jpeg' | 'png' | 'webp'
+  outputType?: 'file' | 'base64'
 }
 
 export async function optimizeImage(
   file: File,
   options: OptimizeImageOptions = {}
-): Promise<File> {
+): Promise<File | string> {
   const {
     maxWidth = 1920,
     maxHeight = 1080,
     quality = 0.8,
     format = 'webp',
+    outputType = 'file'
   } = options
 
   // Create an image element
@@ -51,22 +53,26 @@ export async function optimizeImage(
 
   ctx.drawImage(img, 0, 0, width, height)
 
-  // Convert to blob
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) resolve(blob)
-        else reject(new Error('Could not create blob'))
-      },
-      `image/${format}`,
-      quality
-    )
-  })
+  if (outputType === 'base64') {
+    // Return base64 string
+    return canvas.toDataURL(`image/${format}`, quality)
+  } else {
+    // Convert to blob and return as File
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob)
+          else reject(new Error('Could not create blob'))
+        },
+        `image/${format}`,
+        quality
+      )
+    })
 
-  // Create a new file
-  return new File([blob], file.name.replace(/\.[^.]+$/, `.${format}`), {
-    type: `image/${format}`,
-  })
+    return new File([blob], file.name.replace(/\.[^.]+$/, `.${format}`), {
+      type: `image/${format}`,
+    })
+  }
 }
 
 export function isImageFile(file: File): boolean {

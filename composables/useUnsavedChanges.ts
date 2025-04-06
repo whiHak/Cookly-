@@ -36,14 +36,19 @@ export function useUnsavedChanges(hasChanges: () => boolean) {
     pendingNavigation.value = null
   }
 
-  // Add event listeners
-  window.addEventListener('beforeunload', handleBeforeUnload)
-  router.beforeEach(handleRouteChange)
+  // Only add browser-specific event listeners if window is defined
+  if (typeof window !== 'undefined') {
+    // Add event listeners
+    window.addEventListener('beforeunload', handleBeforeUnload)
 
-  // Clean up event listeners
-  onBeforeUnmount(() => {
-    window.removeEventListener('beforeunload', handleBeforeUnload)
-  })
+    // Clean up event listeners
+    onBeforeUnmount(() => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    })
+  }
+
+  // Router navigation guard works in both SSR and client
+  router.beforeEach(handleRouteChange)
 
   return {
     showDialog,

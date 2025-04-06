@@ -29,7 +29,7 @@
             </div>
             <div
               v-if="index < steps.length - 1"
-              class="mx-4 h-0.5 w-8"
+              class="mx-4 h-0.5 w-6 md:w-28"
               :class="currentStep > index ? 'bg-primary' : 'bg-muted'"
             />
           </div>
@@ -398,6 +398,36 @@
               {{ errors.notes[0] }}
             </p>
           </div>
+
+          <div class="space-y-4">
+            <div class="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isFree"
+                v-model="form.isFree"
+                class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                @change="handleFreeChange"
+              />
+              <label for="isFree" class="text-sm font-medium">Make this recipe free</label>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium">Price</label>
+              <input
+                v-model="form.price"
+                type="number"
+                min="0"
+                step="0.01"
+                :disabled="form.isFree"
+                class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                :class="errors.price ? 'border-red-500' : ''"
+                @blur="validateField('price')"
+              />
+              <p v-if="errors.price" class="mt-1 text-sm text-red-500">
+                {{ errors.price[0] }}
+              </p>
+            </div>
+          </div>
         </div>
 
         <!-- Navigation -->
@@ -454,7 +484,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '~/utils/api'
 import type { CreateRecipeDto } from '~/types/recipe'
@@ -462,8 +492,14 @@ import { useFormValidation, rules } from '~/composables/useFormValidation'
 import { useUnsavedChanges } from '~/composables/useUnsavedChanges'
 import { optimizeImage } from '~/utils/imageOptimizer'
 
+interface ToastRef {
+  value: {
+    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
+  } | null
+}
+
 const router = useRouter()
-const toast = ref()
+const toastRef = inject<ToastRef>('toast')
 
 // State
 const currentStep = ref(0)
@@ -480,32 +516,35 @@ const steps = [
 
 // Mock data
 const categories = [
-  { id: 1, name: 'Breakfast' },
-  { id: 2, name: 'Lunch' },
-  { id: 3, name: 'Dinner' },
-  { id: 4, name: 'Dessert' },
-  { id: 5, name: 'Snacks' },
-  { id: 6, name: 'Vegetarian' },
-  { id: 7, name: 'Vegan' },
-  { id: 8, name: 'Gluten-Free' },
+  { id: '123e4567-e89b-12d3-a456-426614174000', name: 'Breakfast' },
+  { id: '123e4567-e89b-12d3-a456-426614174001', name: 'Lunch' },
+  { id: '123e4567-e89b-12d3-a456-426614174002', name: 'Dinner' },
+  { id: '123e4567-e89b-12d3-a456-426614174003', name: 'Dessert' },
+  { id: '123e4567-e89b-12d3-a456-426614174004', name: 'Snacks' },
+  { id: '123e4567-e89b-12d3-a456-426614174005', name: 'Vegetarian' },
+  { id: '123e4567-e89b-12d3-a456-426614174006', name: 'Vegan' },
+  { id: '123e4567-e89b-12d3-a456-426614174007', name: 'Gluten-Free' },
 ]
 
 const form = ref({
   title: '',
   description: '',
   featuredImage: '',
+  featuredImageUrl: '',
   prepTime: 0,
   cookTime: 0,
   servings: 1,
+  price: 0,
+  isFree: false,
   difficulty: 'medium',
-  categories: [] as number[],
+  categories: [] as string[],
   tags: [] as string[],
   ingredients: [
     { amount: '', unit: '', name: '' },
   ],
   instructions: [
-    { description: '', image: '' },
-  ] as Array<{ description: string; image?: string }>,
+    { description: '', image: '', imageUrl: '' },
+  ] as Array<{ description: string; image?: string; imageUrl?: string }>,
   notes: '',
 })
 
@@ -513,14 +552,44 @@ const form = ref({
 const validationRules = {
   title: [rules.required(), rules.maxLength(100)],
   description: [rules.required(), rules.maxLength(500)],
-  featuredImage: [rules.required()],
+  featuredImage: [rules.required('Featured image is required')],
   prepTime: [rules.required(), rules.min(0)],
   cookTime: [rules.required(), rules.min(0)],
   servings: [rules.required(), rules.min(1)],
-  difficulty: [rules.required()],
+  price: [{
+    validate: (value: number) => {
+      // Skip validation if recipe is free
+      if (form.value.isFree) return true
+      return value >= 0
+    },
+    message: 'Price must be greater than or equal to 0'
+  }],
   categories: [rules.required('Please select at least one category')],
-  ingredients: [rules.required('Please add at least one ingredient')],
-  instructions: [rules.required('Please add at least one instruction')],
+  ingredients: [
+    rules.required('Please add at least one ingredient'),
+    {
+      validate: (value: typeof form.value.ingredients) => {
+        if (!value || value.length === 0) return false
+        return value.every(ingredient => 
+          ingredient.amount.trim() !== '' && 
+          ingredient.name.trim() !== ''
+        )
+      },
+      message: 'All ingredients must have an amount and name'
+    }
+  ],
+  instructions: [
+    rules.required('Please add at least one instruction'),
+    {
+      validate: (value: typeof form.value.instructions) => {
+        if (!value || value.length === 0) return false
+        return value.every(instruction => 
+          instruction.description.trim() !== ''
+        )
+      },
+      message: 'All instructions must have a description'
+    }
+  ]
 }
 
 const { errors, validateForm, validateField } = useFormValidation(form.value, validationRules)
@@ -536,14 +605,19 @@ const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChanges(()
 // Methods
 const nextStep = () => {
   const currentFields = getCurrentStepFields()
-  const isValid = currentFields.every(field => validateField(field))
+  console.log('Current fields to validate:', currentFields)
+  const isValid = currentFields.every(field => {
+    const valid = validateField(field)
+    console.log(`Validating ${field}:`, valid)
+    return valid
+  })
 
   if (isValid) {
     if (currentStep.value < steps.length - 1) {
       currentStep.value++
     }
   } else {
-    toast.value.addToast('error', 'Please fix the errors before proceeding')
+    toastRef?.value?.addToast('error', 'Please fix the errors before proceeding')
   }
 }
 
@@ -552,13 +626,13 @@ const getCurrentStepFields = () => {
     case 0:
       return ['title', 'description', 'featuredImage'] as const
     case 1:
-      return ['prepTime', 'cookTime', 'servings', 'difficulty', 'categories'] as const
+      return ['prepTime', 'cookTime', 'servings', 'categories'] as const
     case 2:
       return ['ingredients'] as const
     case 3:
       return ['instructions'] as const
     case 4:
-      return ['notes'] as const
+      return ['notes', 'price'] as const
     default:
       return [] as const
   }
@@ -566,54 +640,106 @@ const getCurrentStepFields = () => {
 
 const handleSubmit = async () => {
   if (!validateForm()) {
-    toast.value.addToast('error', 'Please fix all errors before submitting')
+    toastRef?.value?.addToast('error', 'Please fix all validation errors')
+    return
+  }
+
+  // Check if user is logged in
+  const token = localStorage.getItem('token')
+  if (!token) {
+    toastRef?.value?.addToast('error', 'Please log in to create a recipe')
+    router.push('/login')
     return
   }
 
   isSubmitting.value = true
   try {
+    // Ensure price is 0 if recipe is free
+    if (form.value.isFree) {
+      form.value.price = 0
+    }
+
+    // Convert form data to match backend structure
     const recipeData: CreateRecipeDto = {
       title: form.value.title,
       description: form.value.description,
-      featuredImage: form.value.featuredImage,
-      prepTime: form.value.prepTime,
-      cookTime: form.value.cookTime,
-      servings: form.value.servings,
-      difficulty: form.value.difficulty as 'easy' | 'medium' | 'hard',
-      categories: form.value.categories,
-      tags: form.value.tags,
-      ingredients: form.value.ingredients,
-      instructions: form.value.instructions,
-      notes: form.value.notes,
+      preparation_time: form.value.prepTime + form.value.cookTime,
+      category_id: form.value.categories[0],
+      featured_image: form.value.featuredImageUrl,
+      steps: form.value.instructions.map((instruction, index) => ({
+        step_number: index + 1,
+        description: instruction.description,
+        image_url: instruction.imageUrl || null
+      })),
+      ingredients: form.value.ingredients.map(ingredient => ({
+        ingredient_id: uuid(),
+        quantity: ingredient.amount,
+        unit: ingredient.unit || null
+      })),
+      images: [
+        {
+          image_url: form.value.featuredImageUrl,
+          is_featured: true
+        },
+        ...form.value.instructions
+          .filter(instruction => instruction.imageUrl)
+          .map(instruction => ({
+            image_url: instruction.imageUrl!,
+            is_featured: false
+          }))
+      ],
+      price: form.value.price
     }
+    console.log('Submitting recipe:', recipeData)
 
     const recipe = await api.recipes.create(recipeData)
-    toast.value.addToast('success', 'Recipe created successfully')
-    router.push(`/recipes/${recipe.slug}`)
+    toastRef?.value?.addToast('success', 'Recipe created successfully')
+    router.push(`/recipes/${recipe.id}`)
   } catch (error) {
-    console.error('Error submitting recipe:', error)
-    toast.value.addToast('error', 'Failed to create recipe')
+    console.error('Error creating recipe:', error)
+    toastRef?.value?.addToast('error', error instanceof Error ? error.message : 'Failed to create recipe')
   } finally {
     isSubmitting.value = false
   }
 }
 
+// Add UUID generation function
+function uuid(): string {
+  // Generate a proper UUID v4
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
 const handleImageUpload = async (event: Event) => {
   const input = event.target as HTMLInputElement
   if (input.files && input.files[0]) {
+    // Check if user is logged in
+    const token = localStorage.getItem('token')
+    if (!token) {
+      toastRef?.value?.addToast('error', 'Please log in to upload images')
+      router.push('/auth/login')
+      return
+    }
+
     try {
-      const file = await optimizeImage(input.files[0], {
+      const base64Image = await optimizeImage(input.files[0], {
         maxWidth: 1920,
         maxHeight: 1080,
         quality: 0.8,
         format: 'webp',
-      })
-      const { url } = await api.recipes.uploadImage(file)
-      form.value.featuredImage = url
+        outputType: 'base64'
+      }) as string
+
+      const { url } = await api.recipes.uploadImage(base64Image)
+      form.value.featuredImage = base64Image
+      form.value.featuredImageUrl = url
       validateField('featuredImage')
     } catch (error) {
       console.error('Error uploading image:', error)
-      toast.value.addToast('error', 'Failed to upload image')
+      toastRef?.value?.addToast('error', 'Failed to upload image')
     }
   }
 }
@@ -621,23 +747,34 @@ const handleImageUpload = async (event: Event) => {
 const handleStepImageUpload = async (event: Event, stepIndex: number) => {
   const input = event.target as HTMLInputElement
   if (input.files && input.files[0]) {
+    // Check if user is logged in
+    const token = localStorage.getItem('token')
+    if (!token) {
+      toastRef?.value?.addToast('error', 'Please log in to upload images')
+      router.push('/login')
+      return
+    }
+
     try {
-      const file = await optimizeImage(input.files[0], {
+      const base64Image = await optimizeImage(input.files[0], {
         maxWidth: 1920,
         maxHeight: 1080,
         quality: 0.8,
         format: 'webp',
-      })
-      const { url } = await api.recipes.uploadImage(file)
-      form.value.instructions[stepIndex].image = url
+        outputType: 'base64'
+      }) as string
+
+      const { url } = await api.recipes.uploadImage(base64Image)
+      form.value.instructions[stepIndex].image = base64Image
+      form.value.instructions[stepIndex].imageUrl = url
     } catch (error) {
       console.error('Error uploading step image:', error)
-      toast.value.addToast('error', 'Failed to upload step image')
+      toastRef?.value?.addToast('error', 'Failed to upload step image')
     }
   }
 }
 
-const toggleCategory = (categoryId: number) => {
+const toggleCategory = (categoryId: string) => {
   const index = form.value.categories.indexOf(categoryId)
   if (index === -1) {
     form.value.categories.push(categoryId)
@@ -666,11 +803,18 @@ const removeIngredient = (index: number) => {
 }
 
 const addStep = () => {
-  form.value.instructions.push({ description: '', image: '' })
+  form.value.instructions.push({ description: '', image: '', imageUrl: '' })
 }
 
 const removeStep = (index: number) => {
   form.value.instructions.splice(index, 1)
+}
+
+const handleFreeChange = () => {
+  if (form.value.isFree) {
+    form.value.price = 0
+  }
+  validateField('price')
 }
 
 // Page meta
