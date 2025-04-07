@@ -501,6 +501,12 @@ interface ToastRef {
 const router = useRouter()
 const toastRef = inject<ToastRef>('toast')
 
+// Add router debugging
+router.beforeEach((to, from, next) => {
+  console.log('Router navigation:', { to, from })
+  next()
+})
+
 // State
 const currentStep = ref(0)
 const isSubmitting = ref(false)
@@ -665,11 +671,11 @@ const handleSubmit = async () => {
       description: form.value.description,
       preparation_time: form.value.prepTime + form.value.cookTime,
       category_id: form.value.categories[0],
-      featured_image: form.value.featuredImageUrl,
+      featured_image: form.value.featuredImage,
       steps: form.value.instructions.map((instruction, index) => ({
         step_number: index + 1,
         description: instruction.description,
-        image_url: instruction.imageUrl || null
+        image_base64: instruction.image || null
       })),
       ingredients: form.value.ingredients.map(ingredient => ({
         ingredient_id: uuid(),
@@ -678,13 +684,13 @@ const handleSubmit = async () => {
       })),
       images: [
         {
-          image_url: form.value.featuredImageUrl,
+          image_base64: form.value.featuredImage,
           is_featured: true
         },
         ...form.value.instructions
-          .filter(instruction => instruction.imageUrl)
+          .filter(instruction => instruction.image)
           .map(instruction => ({
-            image_url: instruction.imageUrl!,
+            image_base64: instruction.image!,
             is_featured: false
           }))
       ],
@@ -693,8 +699,31 @@ const handleSubmit = async () => {
     console.log('Submitting recipe:', recipeData)
 
     const recipe = await api.recipes.create(recipeData)
+    console.log('Recipe created successfully:', recipe)
     toastRef?.value?.addToast('success', 'Recipe created successfully')
-    router.push(`/recipes/${recipe.id}`)
+    
+    // Reset the form state to match initial state to prevent unsaved changes dialog
+    form.value = {
+      title: '',
+      description: '',
+      featuredImage: '',
+      featuredImageUrl: '',
+      prepTime: 0,
+      cookTime: 0,
+      servings: 1,
+      price: 0,
+      isFree: false,
+      difficulty: 'medium',
+      categories: [],
+      tags: [],
+      ingredients: [{ amount: '', unit: '', name: '' }],
+      instructions: [{ description: '', image: '', imageUrl: '' }],
+      notes: ''
+    }
+    
+    // Navigate to recipes page
+    window.history.pushState({}, '', `/recipes/${recipe.id}`)
+    window.location.reload()
   } catch (error) {
     console.error('Error creating recipe:', error)
     toastRef?.value?.addToast('error', error instanceof Error ? error.message : 'Failed to create recipe')

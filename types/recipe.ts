@@ -41,12 +41,12 @@ export interface CreateRecipeDto {
   description: string
   preparation_time: number
   category_id: string
-  featured_image: string
-  price?: number | null
+  featured_image: string // base64 image data
+  price: number
   steps: {
     step_number: number
     description: string
-    image_url: string | null
+    image_base64: string | null
   }[]
   ingredients: {
     ingredient_id: string
@@ -54,7 +54,7 @@ export interface CreateRecipeDto {
     unit: string | null
   }[]
   images: {
-    image_url: string
+    image_base64: string
     is_featured: boolean
   }[]
 }

@@ -6,13 +6,12 @@ const API_BASE_URL =
 // Add a function to get auth headers
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem("token");
-  console.log("Token from localStorage:", token);
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  if (!token) {
+    throw new Error("No authentication token found");
   }
-  console.log("Generated headers:", headers);
-  return headers;
+  return {
+    Authorization: `Bearer ${token}`,
+  };
 }
 
 class ApiError extends Error {
@@ -114,6 +113,10 @@ export const api = {
 
     async getBySlug(slug: string): Promise<Recipe> {
       return api.get<Recipe>(`/recipes/slug/${slug}`);
+    },
+
+    async getAll(): Promise<Recipe[]> {
+      return api.get<Recipe[]>("/recipes/all");
     },
 
     async delete(id: number): Promise<void> {
