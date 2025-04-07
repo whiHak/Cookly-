@@ -185,12 +185,17 @@
 <script setup lang="ts">
 import { ref, inject } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { useRouter, useRoute } from 'vue-router'
 
 interface ToastRef {
   value: {
     addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
   } | null
 }
+
+// Router
+const router = useRouter()
+const route = useRoute()
 
 // State
 const firstName = ref('')
@@ -222,15 +227,19 @@ const handleRegister = async () => {
   try {
     const auth = useAuth()
     await auth.register({
-      firstName: firstName.value,
-      lastName: lastName.value,
-      username: username.value,
+      name: `${firstName.value} ${lastName.value}`,
       email: email.value,
       password: password.value,
     })
     
-    toastRef?.value?.addToast('success', 'Account created successfully')
-    navigateTo('/')
+    toastRef?.value?.addToast('success', 'Registration successful')
+    
+    // Get redirect path from query or localStorage
+    const redirectPath = route.query.redirect as string || localStorage.getItem('redirectPath') || '/'
+    localStorage.removeItem('redirectPath') // Clear stored path
+    
+    // Navigate to redirect path
+    router.push(redirectPath)
   } catch (error) {
     toastRef?.value?.addToast('error', 'Registration failed. Please try again.')
     console.error('Registration failed:', error)

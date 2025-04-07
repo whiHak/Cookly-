@@ -113,12 +113,17 @@
 <script setup lang="ts">
 import { ref, inject } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { useRouter, useRoute } from 'vue-router'
 
 interface ToastRef {
   value: {
     addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
   } | null
 }
+
+// Router
+const router = useRouter()
+const route = useRoute()
 
 // State
 const email = ref('')
@@ -145,7 +150,13 @@ const handleLogin = async () => {
     })
     
     toastRef?.value?.addToast('success', 'Signed in successfully')
-    navigateTo('/')
+    
+    // Get redirect path from query or localStorage
+    const redirectPath = route.query.redirect as string || localStorage.getItem('redirectPath') || '/'
+    localStorage.removeItem('redirectPath') // Clear stored path
+    
+    // Navigate to redirect path
+    router.push(redirectPath)
   } catch (error) {
     toastRef?.value?.addToast('error', 'Login failed. Please check your credentials and try again.')
     console.error('Login failed:', error)

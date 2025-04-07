@@ -5,12 +5,15 @@ interface User {
   id: string
   username: string
   email: string
-  fullName: string
+  full_name: string
 }
 
 interface AuthResponse {
   token: string
-  user: User
+  user_id: string
+  username: string
+  email: string
+  full_name: string
 }
 
 export const useAuth = () => {
@@ -18,9 +21,7 @@ export const useAuth = () => {
 
   // Register user
   const register = async (userData: {
-    firstName: string
-    lastName: string
-    username: string
+    name: string
     email: string
     password: string
   }) => {
@@ -30,20 +31,22 @@ export const useAuth = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          username: userData.username,
-          email: userData.email,
-          password: userData.password,
-          full_name: `${userData.firstName} ${userData.lastName}`,
-        }),
+        body: JSON.stringify(userData),
       })
 
       if (!response.ok) {
-        throw new Error('Registration failed')
+        const error = await response.json()
+        throw new Error(error.message || 'Registration failed')
       }
 
       const data: AuthResponse = await response.json()
-      userStore.login(data)
+      userStore.login({
+        token: data.token,
+        userID: data.user_id,
+        username: data.username,
+        email: data.email,
+        fullName: data.full_name
+      })
       return data
     } catch (error) {
       console.error('Registration error:', error)
@@ -63,11 +66,18 @@ export const useAuth = () => {
       })
 
       if (!response.ok) {
-        throw new Error('Login failed')
+        const error = await response.json()
+        throw new Error(error.message || 'Login failed')
       }
 
       const data: AuthResponse = await response.json()
-      userStore.login(data)
+      userStore.login({
+        token: data.token,
+        userID: data.user_id,
+        username: data.username,
+        email: data.email,
+        fullName: data.full_name
+      })
       return data
     } catch (error) {
       console.error('Login error:', error)
