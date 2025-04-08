@@ -112,7 +112,7 @@ export const api = {
     },
 
     async getBySlug(slug: string): Promise<Recipe> {
-      return api.get<Recipe>(`/recipes/slug/${slug}`);
+      return api.get<Recipe>(`/recipes/${slug}`);
     },
 
     async getAll(): Promise<Recipe[]> {
