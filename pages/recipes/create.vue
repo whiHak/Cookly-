@@ -623,7 +623,7 @@ const nextStep = () => {
       currentStep.value++
     }
   } else {
-    toastRef?.value?.addToast('error', 'Please fix the errors before proceeding')
+    toastRef?.value?.addToast('error', 'Please fill all the fields before proceeding')
   }
 }
 
@@ -672,6 +672,8 @@ const handleSubmit = async () => {
       preparation_time: form.value.prepTime + form.value.cookTime,
       category_id: form.value.categories[0],
       featured_image: form.value.featuredImage,
+      difficulty: form.value.difficulty,
+      servings: form.value.servings,
       steps: form.value.instructions.map((instruction, index) => ({
         step_number: index + 1,
         description: instruction.description,
@@ -680,7 +682,8 @@ const handleSubmit = async () => {
       ingredients: form.value.ingredients.map(ingredient => ({
         ingredient_id: uuid(),
         quantity: ingredient.amount,
-        unit: ingredient.unit || null
+        unit: ingredient.unit || null,
+        name: ingredient.name
       })),
       images: [
         {
@@ -726,7 +729,7 @@ const handleSubmit = async () => {
     window.location.reload()
   } catch (error) {
     console.error('Error creating recipe:', error)
-    toastRef?.value?.addToast('error', error instanceof Error ? error.message : 'Failed to create recipe')
+    toastRef?.value?.addToast('Failed to create recipe')
   } finally {
     isSubmitting.value = false
   }
