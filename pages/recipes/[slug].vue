@@ -1,8 +1,8 @@
 <template>
   <div class="container mx-auto px-4 py-8">
     <!-- Loading State -->
-    <div v-if="loading" class="text-center">
-      <p class="text-lg font-semibold">Loading recipe...</p>
+    <div v-if="loading" class="flex justify-center text-center">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
     </div>
 
     <!-- Error State -->
@@ -94,16 +94,37 @@
                   <span>{{ recipe.preparation_time }} minutes</span>
                 </div>
                 <div class="flex items-center justify-between">
+                  <span class="text-muted-foreground">Difficulty</span>
+                  <span class="capitalize">{{recipe.difficulty }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-muted-foreground">Servings</span>
+                  <span >{{recipe.servings }}</span>
+                </div>
+                <div class="flex items-center justify-between">
                   <span class="text-muted-foreground">Price</span>
                   <span>{{ recipe.price == 0 ? "Free" : `$` + recipe.price }}</span>
                 </div>
               </div>
               <div v-if="recipe.price > 0" class="mt-4">
-                <button
+                <form method="POST" action="https://api.chapa.co/v1/hosted/pay" >
+                  <input type="hidden" name="public_key" :value= "chapaPublicKey" />
+                  <input type="hidden" name="tx_ref" value="negade-tx-12345678ssdfgs9" />
+                  <input type="hidden" name="amount" :value="recipe.price" />
+                  <input type="hidden" name="currency" value="ETB" />
+                  <input type="hidden" name="first_name" value="Israel" />
+                  <input type="hidden" name="last_name" value="Goytom" />
+                  <input type="hidden" name="title" :value="recipe.title" />
+                  <input type="hidden" name="description" value="Paying with Confidence with cha" />
+                  <input type="hidden" name="logo" value="https://chapa.link/asset/images/chapa_swirl.svg" />
+                  <input type="hidden" name="callback_url" value="https://localhost:3000/recipes" />
+                  <input type="hidden" name="return_url" value="https://localhost:3000/recipes" />
+                  <button
                   class="w-full rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark shadow-lg"
-                >
-                  Pay Now
-                </button>
+                  >
+                    Pay Now
+                  </button>
+                </form>
               </div>
             </div>
 
@@ -160,7 +181,7 @@
                   class="flex items-center gap-2 rounded-md border px-4 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 >
                   <i :class="isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart'"></i>
-                  <span>{{ isLiked ? 'Liked' : 'Like' }}</span>
+                  <span>Like</span>
                 </button>
                 <!-- Bookmark Button -->
                 <button
@@ -168,7 +189,7 @@
                   class="flex items-center gap-2 rounded-md border px-4 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 >
                   <i :class="isBookmarked ? 'fas fa-bookmark text-blue-500' : 'far fa-bookmark'"></i>
-                  <span>{{ isBookmarked ? 'Bookmarked' : 'Bookmark' }}</span>
+                  <span>Bookmark</span>
                 </button>
               </div>
             </div>
@@ -182,9 +203,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
+interface ToastRef {
+  value: {
+    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
+  } | null
+}
+
+const toastRef = inject<ToastRef>('toast')
 const route = useRoute()
 
+const chapaPublicKey = process.env.NUXT_PUBLIC_CHAPA_PUBLIC_KEY;
 // State
 const recipe = ref<any>(null)
 const loading = ref(true)
@@ -211,7 +241,10 @@ const rateRecipe = (rating: number) => {
 
 const toggleLike = () => {
   isLiked.value = !isLiked.value
-  console.log(isLiked.value ? 'Liked the recipe' : 'Unliked the recipe')
+  isLiked.value ? 
+    (toastRef?.value?.addToast('info', 'You Liked this recipe')) : 
+    toastRef?.value?.addToast('info', 'You Unliked this recipe')
+
 }
 
 const toggleBookmark = () => {
@@ -228,12 +261,14 @@ const fetchRecipe = async () => {
       id: data.id,
       title: data.title,
       description: data.description,
+      difficulty: data.difficulty,
+      servings: data.servings,
       featuredImage: data.featured_image,
       preparation_time: data.preparation_time,
       price: data.price,
       steps: data.steps,
       ingredients: data.ingredients.map((ingredient: any) => ({
-        name: ingredient.ingredient_id, // Replace with actual name if available
+        name: ingredient.name,
         quantity: ingredient.quantity,
         unit: ingredient.unit,
       })),
