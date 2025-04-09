@@ -4,7 +4,7 @@
     <section class="relative h-[600px] flex items-center justify-center overflow-hidden">
       <div class="absolute inset-0 z-0">
         <img
-          src="/images/logo.svg"
+          src="/images/avatars/Pizza.jpg"
           alt="Delicious food background"
           class="w-full h-full object-cover"
         />
@@ -285,7 +285,7 @@ const categories = ref([
   {
     id: 1,
     name: 'Italian',
-    image_url: '/images/categories/italian.jpg'
+    image_url: '/images/categories/italy.jpeg'
   },
   {
     id: 2,
@@ -300,12 +300,12 @@ const categories = ref([
   {
     id: 4,
     name: 'Desserts',
-    image_url: '/images/categories/desserts.jpg'
+    image_url: '/images/categories/dessert.jpg'
   },
   {
     id: 5,
     name: 'Vegetarian',
-    image_url: '/images/categories/vegetarian.jpg'
+    image_url: '/images/categories/vegi.jpg'
   }
 ])
 
