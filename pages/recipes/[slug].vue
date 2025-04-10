@@ -294,7 +294,6 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { DEFAULT_AVATAR } from "~/constants";
-import { useUserStore } from "~/stores/useUserStore";
 
 interface ToastRef {
   value: {
@@ -307,7 +306,13 @@ interface ToastRef {
 
 const toastRef = inject<ToastRef>("toast");
 const route = useRoute();
-const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+let user = null;
+
+if (typeof window !== "undefined") {
+  user = JSON.parse(localStorage.getItem("user") || "{}");
+}
+
 
 const chapaPublicKey = process.env.NUXT_PUBLIC_CHAPA_PUBLIC_KEY;
 // State
