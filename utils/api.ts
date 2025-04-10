@@ -1,4 +1,4 @@
-import type { CreateRecipeDto, Recipe, UpdateRecipeDto } from "~/types/recipe";
+import type { CreateRecipeDto, Toggle, Recipe, UpdateRecipeDto } from "~/types/recipe";
 
 const API_BASE_URL =
   process.env.NUXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -119,6 +119,29 @@ export const api = {
       return api.get<Recipe[]>("/recipes/all");
     },
 
+    async likeRecipe(slug:string): Promise<Toggle> {
+      return api.post<Toggle>(`/recipes/${slug}/like`, {});
+    },
+
+    async unlikeRecipe(slug:string): Promise<Toggle> {
+      return api.delete<Toggle>(`/recipes/${slug}/like`, {});
+    },
+
+    async bookmarkRecipe(slug:string): Promise<Toggle> {
+      return api.post<Toggle>(`/recipes/${slug}/bookmark`, {});
+    },
+    async unbookmarkRecipe(slug:string): Promise<Toggle> {
+      return api.delete<Toggle>(`/recipes/${slug}/bookmark`, {});
+    },
+    async rateRecipe(slug:string, rating:number): Promise<Toggle> {
+      return api.post<Toggle>(`/recipes/${slug}/rate`, { rating });
+    },
+    async postComment(slug:string, comment:string): Promise<Toggle> {
+      return api.post<Toggle>(`/recipes/${slug}/comment`, { comment });
+    },
+    async getComments(slug:string): Promise<Toggle> {
+      return api.get<Toggle>(`/recipes/${slug}/comments`);
+    },
     async delete(id: number): Promise<void> {
       return api.delete(`/recipes/${id}`);
     },
