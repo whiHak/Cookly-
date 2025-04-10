@@ -13,6 +13,8 @@ export interface Recipe {
   id: string
   title: string
   description: string
+  difficulty: string
+  servings: number
   preparation_time: number
   category_id: string
   user_id: string
@@ -34,6 +36,7 @@ export interface Recipe {
     image_url: string
     is_featured: boolean
   }[]
+  categories?: []
 }
 
 export interface CreateRecipeDto {
@@ -57,6 +60,11 @@ export interface CreateRecipeDto {
     image_base64: string
     is_featured: boolean
   }[]
+}
+
+export interface Toggle{
+  message: string
+  status: string
 }
 
 export interface UpdateRecipeDto extends Partial<CreateRecipeDto> {} 
