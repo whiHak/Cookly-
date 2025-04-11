@@ -72,9 +72,6 @@
           <div
             v-for="recipe in featuredRecipes"
             :key="recipe.id"
-            v-motion
-            :initial="{ opacity: 0, y: 20 }"
-            :enter="{ opacity: 1, y: 0, transition: { delay: recipe.id * 100 } }"
           >
             <UCard
               class="group hover:shadow-lg transition-shadow h-full"
@@ -223,12 +220,12 @@ const email = ref('')
 const isSubscribing = ref(false)
 
 // Mock featured recipes (replace with API data)
-const featuredRecipes = ref([
+const featuredRecipes = [
   {
     id: 1,
     title: 'Classic Italian Pasta',
     description: 'A traditional Italian pasta recipe with fresh ingredients and authentic flavors.',
-    featured_image: '/images/recipes/pasta.jpg',
+    featured_image: '/images/categories/italy.jpeg',
     preparation_time: 30,
     rating: 4.8,
     isBookmarked: false,
@@ -239,14 +236,14 @@ const featuredRecipes = ref([
     },
     user: {
       username: 'ChefJohn',
-      profile_picture: '/images/avatars/chef-john.jpg'
+      profile_picture: '/images/avatars/Pizza.jpg'
     }
   },
   {
     id: 2,
     title: 'Healthy Buddha Bowl',
     description: 'A nutritious and colorful bowl packed with protein, vegetables, and whole grains.',
-    featured_image: '/images/recipes/buddha-bowl.jpg',
+    featured_image: '/images/categories/dessert.jpg',
     preparation_time: 25,
     rating: 4.6,
     isBookmarked: true,
@@ -257,14 +254,14 @@ const featuredRecipes = ref([
     },
     user: {
       username: 'HealthyEats',
-      profile_picture: '/images/avatars/healthy-eats.jpg'
+      profile_picture: '/images/categories/healthy-eats.jpg'
     }
   },
   {
     id: 3,
-    title: 'Chocolate Lava Cake',
+    title: 'Mexican Tacos',
     description: 'A decadent dessert with a molten chocolate center and a perfect crust.',
-    featured_image: '/images/recipes/lava-cake.jpg',
+    featured_image: '/images/categories/mexican.jpg',
     preparation_time: 20,
     rating: 4.9,
     isBookmarked: false,
@@ -278,7 +275,7 @@ const featuredRecipes = ref([
       profile_picture: '/images/avatars/sweet-tooth.jpg'
     }
   }
-])
+]
 
 // Mock categories (replace with API data)
 const categories = ref([
