@@ -52,11 +52,11 @@
                   type="checkbox"
                   class="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
                 />
-                <div class="flex flex-col">
+                <div class="flex flex-row gap-2 items-center">
                   <span class="text-primary-foreground font-medium">
                     {{ ingredient.quantity }} {{ ingredient.unit }}
                   </span>
-                  <span class="text-muted-foreground">{{
+                  <span class="text-muted-foreground"> - {{
                     ingredient.name
                   }}</span>
                 </div>
@@ -212,7 +212,7 @@
                 <NuxtLink
                   v-for="category in recipe.categories"
                   :key="category.id"
-                  :to="`/categories/${category.slug}`"
+                  :to="`/categories/${category.name}`"
                   class="rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground hover:bg-muted/80"
                 >
                   {{ category.name }}
