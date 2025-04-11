@@ -665,12 +665,27 @@ const handleSubmit = async () => {
       form.value.price = 0
     }
 
+    // Combine categories and tags
+    const allCategories = [
+      ...form.value.categories.map(categoryId => {
+        const category = categories.find(c => c.id === categoryId)
+        return {
+          category_id: categoryId,
+          name: category?.name || ''
+        }
+      }),
+      ...form.value.tags.map(tag => ({
+        category_id: uuid(),
+        name: tag
+      }))
+    ]
+
     // Convert form data to match backend structure
     const recipeData: CreateRecipeDto = {
       title: form.value.title,
       description: form.value.description,
       preparation_time: form.value.prepTime + form.value.cookTime,
-      category_id: form.value.categories[0],
+      categories: allCategories,
       featured_image: form.value.featuredImage,
       difficulty: form.value.difficulty,
       servings: form.value.servings,
@@ -729,7 +744,7 @@ const handleSubmit = async () => {
     window.location.reload()
   } catch (error) {
     console.error('Error creating recipe:', error)
-    toastRef?.value?.addToast('Failed to create recipe')
+    toastRef?.value?.addToast('error', 'Failed to create recipe')
   } finally {
     isSubmitting.value = false
   }

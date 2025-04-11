@@ -16,7 +16,10 @@ export interface Recipe {
   difficulty: string
   servings: number
   preparation_time: number
-  category_id: string
+  categories: {
+    category_id: string
+    name: string
+  }[]
   user_id: string
   featured_image: string
   price?: number | null
@@ -36,14 +39,18 @@ export interface Recipe {
     image_url: string
     is_featured: boolean
   }[]
-  categories?: []
 }
 
 export interface CreateRecipeDto {
   title: string
   description: string
+  difficulty: string
+  servings: number
   preparation_time: number
-  category_id: string
+  categories: {
+    category_id: string
+    name: string
+  }[]
   featured_image: string // base64 image data
   price: number
   steps: {
