@@ -1,5 +1,5 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto px-8 py-8">
     <!-- Header -->
     <div class="mb-8">
       <h1 class="text-3xl font-bold">All Recipes</h1>
@@ -110,57 +110,74 @@
       </div>
 
       <!-- Recipe Grid -->
-      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <div
-          v-for="recipe in filteredRecipes"
-          :key="recipe.id"
-          class="group relative overflow-hidden rounded-lg border bg-card transition-colors hover:border-primary"
-        >
-          <NuxtLink :to="`/recipes/${recipe.id}`">
-            <div class="aspect-[4/3] overflow-hidden">
-              <img
-                :src="recipe.featured_image"
-                :alt="recipe.title"
-                class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-            </div>
-            <div class="p-4">
-              <div class="flex items-start justify-between">
-                <h2 class="text-lg font-semibold leading-tight">
-                  {{ recipe.title }}
-                </h2>
-                <button
-                  type="button"
-                  class="rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  @click.prevent="toggleBookmark(recipe)"
-                >
-                  <Icon
-                    name="lucide:bookmark-outline"
-                    class="h-5 w-5"
+      <div class="mx-auto max-w-screen-xl lg:max-w-[1400px]">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            v-for="recipe in recipes"
+            :key="recipe.id"
+          >
+            <UCard
+              class="group hover:shadow-lg transition-shadow h-full"
+              @click="navigateTo(`/recipes/${recipe.id}`)"
+            >
+              <template #header>
+                <div class="relative aspect-video overflow-hidden rounded-t-lg">
+                  <img
+                    :src="recipe.featured_image"
+                    :alt="recipe.title"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                </button>
-              </div>
-              <p class="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                {{ recipe.description }}
-              </p>
-              <div class="mt-4 flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                  <div class="flex items-center gap-1">
-                    <Icon name="lucide:clock" class="h-4 w-4 text-muted-foreground" />
-                    <span class="text-sm text-muted-foreground">
-                      {{ recipe.preparation_time }} min
-                    </span>
+                  <div class="absolute top-4 right-4 flex gap-2">
+                    <UButton
+                      color="white"
+                      variant="solid"
+                      size="sm"
+                      :icon="recipe ? 'i-lucide-bookmark' : 'i-lucide-bookmark-outline'"
+                      @click.stop="toggleBookmark(recipe)"
+                    />
+                  </div>
+                </div>
+              </template>
+
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <UBadge
+                    color="primary"
+                    variant="subtle"
+                    size="sm"
+                  >
+                    {{ recipe.categories[0].name }}
+                  </UBadge>
+                  <span class="text-sm text-muted-foreground">
+                    {{ recipe.preparation_time }} min
+                  </span>
+                </div>
+
+                <h3 class="text-lg font-semibold group-hover:text-primary transition-colors">
+                  {{ recipe.title }}
+                </h3>
+
+                <p class="text-sm text-muted-foreground line-clamp-2">
+                  {{ recipe.description }}
+                </p>
+
+                <div class="flex items-center justify-between pt-2">
+                  <div class="flex items-center gap-2">
+                    <UAvatar
+                      :src="recipe.user[0].full_name"
+                      :alt="recipe.user[0].full_name"
+                      size="sm"
+                    />
+                    <span class="text-sm">{{ recipe.user[0].full_name }} <span class="text-gray-500">{{ user.fullName == recipe.user[0].full_name && "(You)" }}</span></span>
                   </div>
                   <div class="flex items-center gap-1">
-                    <Icon name="lucide:dollar-sign" class="h-4 w-4 text-green-500" />
-                    <span class="text-sm text-muted-foreground">
-                      {{ recipe.price || 0 }}
-                    </span>
+                    <Icon name="lucide:star" class="w-4 h-4 text-yellow-400" />
+                    <span class="text-sm">{{ recipe?.rating }}</span>
                   </div>
                 </div>
               </div>
-            </div>
-          </NuxtLink>
+            </UCard>
+          </div>
         </div>
       </div>
 
@@ -201,6 +218,13 @@ const cookingTime = ref('')
 const recipes = ref<Recipe[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+
+let user = null;
+
+if (typeof window !== "undefined") {
+  user = JSON.parse(localStorage.getItem("user") || "{}");
+}
+console.log(user)
 
 // Check authentication
 const checkAuth = () => {

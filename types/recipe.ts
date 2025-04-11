@@ -21,6 +21,10 @@ export interface Recipe {
     name: string
   }[]
   user_id: string
+  user:{
+    full_name: string
+    username: string
+  }[]
   featured_image: string
   price?: number | null
   created_at: string
@@ -39,6 +43,7 @@ export interface Recipe {
     image_url: string
     is_featured: boolean
   }[]
+  rating: number
 }
 
 export interface CreateRecipeDto {
