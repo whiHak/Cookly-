@@ -46,7 +46,7 @@
           <div class="flex items-center gap-4">
             <select
               v-model="sortBy"
-              class="rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+              class="rounded-md flex items-center gap-20 w-24 border bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="newest">Newest</option>
               <option value="price">Price</option>
@@ -78,6 +78,16 @@
                 class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">All Categories</option>
+                <option value="Gluten-Free">Gluten-Free</option>
+                <option value="Vegetarian">Vegetarian</option>
+                <option value="Lunch">Lunch</option>
+                <option value="Breakfast">Breakfast</option>
+                <option value="Dinner">Dinner</option>
+                <option value="Dessert">Dessert</option>
+                <option value="Vegan">Vegan</option>
+                <option value="Snacks">Snacks</option>
+                <option value="Snacks">Snacks</option>
+                
                 <!-- Categories will be populated from backend -->
               </select>
             </div>
@@ -263,7 +273,7 @@ const filteredRecipes = computed(() => {
 
   // Apply category filter
   if (selectedCategory.value) {
-    result = result.filter(recipe => recipe.category_id === selectedCategory.value)
+    result = result.filter(recipe => (recipe.categories.map(category => (category.name === selectedCategory.value)).includes(true)))
   }
 
   // Apply cooking time filter
