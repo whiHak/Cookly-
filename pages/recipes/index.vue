@@ -113,7 +113,7 @@
       <div class="mx-auto max-w-screen-xl lg:max-w-[1400px]">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div
-            v-for="recipe in recipes"
+            v-for="recipe in filteredRecipes"
             :key="recipe.id"
           >
             <UCard
@@ -168,7 +168,7 @@
                       :alt="recipe.user[0].full_name"
                       size="sm"
                     />
-                    <span class="text-sm">{{ recipe.user[0].full_name }} <span class="text-gray-500">{{ user.fullName == recipe.user[0].full_name && "(You)" }}</span></span>
+                    <span class="text-sm">{{ recipe.user[0].full_name }} <span class="text-gray-500">{{ user.fullName == recipe.user[0].full_name ? "(You)" : "" }}</span></span>
                   </div>
                   <div class="flex items-center gap-1">
                     <Icon name="lucide:star" class="w-4 h-4 text-yellow-400" />
@@ -200,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { api } from '~/utils/api'
 import type { Recipe } from '~/types/recipe'
 import { useRouter, useRoute } from 'vue-router'
@@ -228,7 +228,6 @@ if (typeof window !== "undefined") {
 // Fetch recipes
 const fetchRecipes = async () => {
   try {
-
     loading.value = true
     error.value = null
     const data = await api.recipes.getAll()
@@ -253,46 +252,74 @@ const fetchRecipes = async () => {
   }
 }
 
-// Fetch recipes on component mount
-onMounted(() => {
-  fetchRecipes()
-})
-
 // Computed
 const filteredRecipes = computed(() => {
   let result = [...recipes.value]
 
   // Apply search filter
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(
-      recipe =>
-        recipe.title.toLowerCase().includes(query) ||
-        (recipe.description?.toLowerCase().includes(query) ?? false)
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim()
+    result = result.filter(recipe => 
+      recipe.title.toLowerCase().includes(query) ||
+      recipe.description?.toLowerCase().includes(query) ||
+      recipe.categories?.some(cat => cat.name.toLowerCase().includes(query)) ||
+      false
     )
   }
 
   // Apply category filter
   if (selectedCategory.value) {
-    result = result.filter(recipe => (recipe.categories.map(category => (category.name === selectedCategory.value)).includes(true)))
+    result = result.filter(recipe => 
+      recipe.categories?.some(category => 
+        category.name.toLowerCase() === selectedCategory.value.toLowerCase()
+      )
+    )
   }
 
   // Apply cooking time filter
   if (cookingTime.value) {
-    result = result.filter(recipe => recipe.preparation_time <= Number(cookingTime.value))
+    const maxTime = parseInt(cookingTime.value)
+    result = result.filter(recipe => 
+      recipe.preparation_time && recipe.preparation_time <= maxTime
+    )
   }
 
   // Apply sorting
-  switch (sortBy.value) {
-    case 'newest':
-      result.sort((a, b) => b.id.localeCompare(a.id))
-      break
-    case 'price':
-      result.sort((a, b) => (b.price || 0) - (a.price || 0))
-      break
+  if (sortBy.value === 'newest') {
+    result.sort((a, b) => {
+      const dateA = new Date(a.created_at || 0)
+      const dateB = new Date(b.created_at || 0)
+      return dateB.getTime() - dateA.getTime()
+    })
+  } else if (sortBy.value === 'price') {
+    result.sort((a, b) => (b.price || 0) - (a.price || 0))
   }
 
   return result
+})
+
+// Watch for filter changes to update URL
+watch([searchQuery, selectedCategory, cookingTime, sortBy], () => {
+  // Update URL with current filters
+  router.replace({
+    query: {
+      ...(searchQuery.value && { search: searchQuery.value }),
+      ...(selectedCategory.value && { category: selectedCategory.value }),
+      ...(cookingTime.value && { time: cookingTime.value }),
+      ...(sortBy.value !== 'newest' && { sort: sortBy.value })
+    }
+  })
+})
+
+// Initialize filters from URL on mount
+onMounted(() => {
+  const query = route.query
+  searchQuery.value = query.search?.toString() || ''
+  selectedCategory.value = query.category?.toString() || ''
+  cookingTime.value = query.time?.toString() || ''
+  sortBy.value = query.sort?.toString() || 'newest'
+  
+  fetchRecipes()
 })
 
 // Methods
