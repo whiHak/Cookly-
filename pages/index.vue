@@ -194,6 +194,7 @@
                 type="email"
                 placeholder="Enter your email"
                 size="lg"
+                class="w-full"
               />
               <UButton
                 type="submit"
@@ -218,6 +219,14 @@ import { ref } from 'vue'
 // State
 const email = ref('')
 const isSubscribing = ref(false)
+
+interface ToastRef {
+  value: {
+    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
+  } | null
+}
+const toastRef = inject<ToastRef>('toast')
+
 
 // Mock featured recipes (replace with API data)
 const featuredRecipes = [
@@ -313,17 +322,8 @@ const toggleBookmark = async (recipe: any) => {
 }
 
 const handleSubscribe = async () => {
-  if (!email.value) return
+  toastRef?.value?.addToast('info', 'Comming soon')
 
-  isSubscribing.value = true
-  try {
-    // TODO: Implement newsletter subscription
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    email.value = ''
-    // Show success message
-  } finally {
-    isSubscribing.value = false
-  }
 }
 
 // Page meta
