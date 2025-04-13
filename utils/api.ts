@@ -31,125 +31,141 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
+// Public request functions (no auth required)
+async function publicGet<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+  return handleResponse<T>(response);
+}
+
+// Private request functions (auth required)
+async function privateGet<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const headers = {
+    "Content-Type": "application/json",
+    ...getAuthHeaders(),
+    ...options.headers,
+  };
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+  return handleResponse<T>(response);
+}
+
+async function privatePost<T>(
+  endpoint: string,
+  data: unknown,
+  options: RequestInit = {}
+): Promise<T> {
+  const headers = {
+    "Content-Type": "application/json",
+    ...getAuthHeaders(),
+    ...options.headers,
+  };
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "POST",
+    ...options,
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<T>(response);
+}
+
+async function privatePut<T>(
+  endpoint: string,
+  data: unknown,
+  options: RequestInit = {}
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "PUT",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<T>(response);
+}
+
+async function privateDelete<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "DELETE",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+      ...options.headers,
+    },
+  });
+  return handleResponse<T>(response);
+}
+
 export const api = {
-  async get<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const headers = {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-      ...options.headers,
-    };
-    console.log(`GET ${endpoint} headers:`, headers);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
-    return handleResponse<T>(response);
-  },
-
-  async post<T>(
-    endpoint: string,
-    data: unknown,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const headers = {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-      ...options.headers,
-    };
-    console.log(`POST ${endpoint} headers:`, headers);
-    console.log(`POST ${endpoint} data:`, data);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "POST",
-      ...options,
-      headers,
-      body: JSON.stringify(data),
-    });
-    return handleResponse<T>(response);
-  },
-
-  async put<T>(
-    endpoint: string,
-    data: unknown,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "PUT",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify(data),
-    });
-    return handleResponse<T>(response);
-  },
-
-  async delete<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "DELETE",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(),
-        ...options.headers,
-      },
-    });
-    return handleResponse<T>(response);
-  },
-
   // Recipe-specific API methods
   recipes: {
     async create(data: CreateRecipeDto): Promise<Recipe> {
-      return api.post<Recipe>("/recipes", data);
+      return privatePost<Recipe>("/recipes", data);
     },
 
     async update(id: number, data: UpdateRecipeDto): Promise<Recipe> {
-      return api.put<Recipe>(`/recipes/${id}`, data);
+      return privatePut<Recipe>(`/recipes/${id}`, data);
     },
 
     async getById(id: number): Promise<Recipe> {
-      return api.get<Recipe>(`/recipes/${id}`);
+      return publicGet<Recipe>(`/recipes/${id}`);
     },
 
     async getBySlug(slug: string): Promise<Recipe> {
-      return api.get<Recipe>(`/recipes/${slug}`);
+      return publicGet<Recipe>(`/recipes/${slug}`);
     },
 
     async getAll(): Promise<Recipe[]> {
-      return api.get<Recipe[]>("/recipes/all");
+      return publicGet<Recipe[]>("/recipes/all");
     },
 
     async likeRecipe(slug:string): Promise<Toggle> {
-      return api.post<Toggle>(`/recipes/${slug}/like`, {});
+      return privatePost<Toggle>(`/recipes/${slug}/like`, {});
     },
 
     async unlikeRecipe(slug:string): Promise<Toggle> {
-      return api.delete<Toggle>(`/recipes/${slug}/like`, {});
+      return privateDelete<Toggle>(`/recipes/${slug}/like`, {});
     },
 
     async bookmarkRecipe(slug:string): Promise<Toggle> {
-      return api.post<Toggle>(`/recipes/${slug}/bookmark`, {});
+      return privatePost<Toggle>(`/recipes/${slug}/bookmark`, {});
     },
+
     async unbookmarkRecipe(slug:string): Promise<Toggle> {
-      return api.delete<Toggle>(`/recipes/${slug}/bookmark`, {});
+      return privateDelete<Toggle>(`/recipes/${slug}/bookmark`, {});
     },
+
     async rateRecipe(slug:string, rating:number): Promise<Toggle> {
-      return api.post<Toggle>(`/recipes/${slug}/rate`, { rating });
+      return privatePost<Toggle>(`/recipes/${slug}/rate`, { rating });
     },
+
     async postComment(slug:string, comment:string): Promise<Toggle> {
-      return api.post<Toggle>(`/recipes/${slug}/comment`, { comment });
+      return privatePost<Toggle>(`/recipes/${slug}/comment`, { comment });
     },
+
     async getComments(slug:string): Promise<Toggle> {
-      return api.get<Toggle>(`/recipes/${slug}/comments`);
+      return publicGet<Toggle>(`/recipes/${slug}/comments`);
     },
+
     async delete(id: number): Promise<void> {
-      return api.delete(`/recipes/${id}`);
+      return privateDelete(`/recipes/${id}`);
     },
 
     async uploadImage(file: File | string): Promise<{ url: string }> {
       if (typeof file === "string") {
         // If file is a base64 string, send it directly
-        return api.post<{ url: string }>("/recipes/upload", { image: file });
+        return privatePost<{ url: string }>("/recipes/upload", { image: file });
       } else {
         // If file is a File object, convert to base64 first
         return new Promise((resolve, reject) => {
@@ -157,7 +173,7 @@ export const api = {
           reader.onload = async () => {
             try {
               const base64String = reader.result as string;
-              const response = await api.post<{ url: string }>(
+              const response = await privatePost<{ url: string }>(
                 "/recipes/upload",
                 {
                   image: base64String,
@@ -174,4 +190,21 @@ export const api = {
       }
     },
   },
+  chapa:{
+    async checkPayment(tx_ref:string | null){
+      var myHeaders = new Headers();
+      myHeaders.append("Authorization", `Bearer CHAPUBK_TEST-muTH7hFJtECAeDvLZww1qEpMZkrD6hMh`);
+      const paymentResponse = await fetch(
+        `https://api.chapa.co/v1/transaction/verify/${tx_ref}`,
+        {
+          method: "GET",
+          headers: myHeaders,
+          redirect: "follow",
+        }
+      );
+      const chapaRespose = await paymentResponse.json();
+      console.log(paymentResponse)
+      return chapaRespose?.data?.status
+    }
+  }
 };

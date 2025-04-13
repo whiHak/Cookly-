@@ -224,32 +224,10 @@ let user = null;
 if (typeof window !== "undefined") {
   user = JSON.parse(localStorage.getItem("user") || "{}");
 }
-console.log(user)
-
-// Check authentication
-const checkAuth = () => {
-  const token = localStorage.getItem('token')
-  if (!token) {
-    // Save current path for redirect after login
-    localStorage.setItem('redirectPath', route.fullPath)
-    navigateToLogin()
-    return false
-  }
-  return true
-}
-
-// Navigate to login
-const navigateToLogin = () => {
-  router.push({
-    path: '/auth/login',
-    query: { redirect: route.fullPath }
-  })
-}
 
 // Fetch recipes
 const fetchRecipes = async () => {
   try {
-    if (!checkAuth()) return
 
     loading.value = true
     error.value = null
@@ -262,7 +240,6 @@ const fetchRecipes = async () => {
       const apiError = err as { status: number; message: string }
       if (apiError.status === 401 || apiError.message.includes('Authorization')) {
         // Unauthorized or missing auth - redirect to login
-        navigateToLogin()
       } else {
         error.value = apiError.message || 'Failed to fetch recipes'
       }
