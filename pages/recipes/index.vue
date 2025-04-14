@@ -121,39 +121,66 @@
               @click="navigateTo(`/recipes/${recipe.id}`)"
             >
               <template #header>
-                <div class="relative aspect-video overflow-hidden rounded-t-lg">
+                <div class="relative h-64 overflow-hidden rounded-t-lg">
                   <img
                     :src="recipe.featured_image"
                     :alt="recipe.title"
                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  <div class="absolute top-4 right-4 flex gap-2">
-                    <UButton
-                      color="white"
-                      variant="solid"
-                      size="sm"
-                      :icon="recipe ? 'i-lucide-bookmark' : 'i-lucide-bookmark-outline'"
-                      @click.stop="toggleBookmark(recipe)"
-                    />
+                  <!-- Price Badge -->
+                  <div class="absolute top-4 right-4 z-10">
+                    <span v-if="recipe.user?.[0]?.id === user?.id" 
+                          class="bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                      Your Recipe
+                    </span>
+                    <span v-else-if="recipe.price > 0" 
+                          class="bg-primary text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                      ETB {{ recipe.price }}
+                    </span>
+                    <span v-else 
+                          class="bg-gray-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                      Free
+                    </span>
                   </div>
+                  <!-- Like and Bookmark Buttons -->
+                  <div class="absolute  bottom-4 right-4 flex space-x-2 z-10">
+                    <button
+                      @click.stop="toggleLike(recipe)"
+                      class="rounded-full bg-white p-2.5 w-10 h-12 self-center shadow-md hover:bg-gray-100 transition-colors"
+                      :class="{ 'text-red-500': recipe.isLiked }"
+                    >
+                      <i :class="recipe.isLiked ? 'fas fa-heart' : 'far fa-heart'"></i>
+                    </button>
+                    <button
+                      @click.stop="toggleBookmark(recipe)"
+                      class="rounded-full bg-white p-2.5 w-10 h-12 shadow-md hover:bg-gray-100 transition-colors"
+                      :class="{ 'text-blue-500': recipe.isBookmarked }"
+                    >
+                      <i :class="recipe.isBookmarked ? 'fas fa-bookmark' : 'far fa-bookmark'"></i>
+                    </button>
+                  </div>
+                  <!-- Dark Gradient Overlay -->
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                 </div>
               </template>
-
+              
               <div class="space-y-2">
                 <div class="flex items-center gap-2">
                   <UBadge
+                    v-if="recipe.categories?.[0]"
                     color="primary"
                     variant="subtle"
                     size="sm"
                   >
                     {{ recipe.categories[0].name }}
                   </UBadge>
-                  <span class="text-sm text-muted-foreground">
+                  <span class="text-sm text-muted-foreground flex items-center">
+                    <i class="far fa-clock mr-1"></i>
                     {{ recipe.preparation_time }} min
                   </span>
                 </div>
 
-                <h3 class="text-lg font-semibold group-hover:text-primary transition-colors">
+                <h3 class="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-1">
                   {{ recipe.title }}
                 </h3>
 
@@ -168,11 +195,15 @@
                       :alt="recipe.user[0].full_name"
                       size="sm"
                     />
-                    <span class="text-sm">{{ recipe.user[0].full_name }} <span class="text-gray-500">{{ user.fullName == recipe.user[0].full_name ? "(You)" : "" }}</span></span>
+                    <span class="text-sm">
+                      {{ recipe.user[0].full_name }}
+                      <span v-if="user?.fullName === recipe.user[0].full_name" 
+                            class="text-gray-500">(You)</span>
+                    </span>
                   </div>
                   <div class="flex items-center gap-1">
                     <Icon name="lucide:star" class="w-4 h-4 text-yellow-400" />
-                    <span class="text-sm">{{ recipe?.rating }}</span>
+                    <span class="text-sm">{{ recipe?.rating || '0.0' }}</span>
                   </div>
                 </div>
               </div>
@@ -200,10 +231,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, inject } from 'vue'
 import { api } from '~/utils/api'
-import type { Recipe } from '~/types/recipe'
 import { useRouter, useRoute } from 'vue-router'
+
+interface ToastRef {
+  value?: {
+    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
+  };
+}
+
+interface Recipe {
+  id: string;
+  title: string;
+  description: string;
+  featured_image: string;
+  preparation_time: number;
+  price: number;
+  user: Array<{
+    id: string;
+    full_name: string;
+    username: string;
+  }>;
+  categories: Array<{
+    category_id: string;
+    name: string;
+  }>;
+  rating?: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
+  created_at?: string;
+}
 
 // Router
 const router = useRouter()
@@ -225,13 +283,19 @@ if (typeof window !== "undefined") {
   user = JSON.parse(localStorage.getItem("user") || "{}");
 }
 
+const toastRef = inject<ToastRef>('toast');
+
 // Fetch recipes
 const fetchRecipes = async () => {
   try {
     loading.value = true
     error.value = null
     const data = await api.recipes.getAll()
-    recipes.value = data
+    recipes.value = data.map(recipe => ({
+      ...recipe,
+      isLiked: false,
+      isBookmarked: false
+    }))
   } catch (err) {
     console.error('Error fetching recipes:', err)
     if (err instanceof Error && 'status' in err) {
@@ -323,14 +387,45 @@ onMounted(() => {
 })
 
 // Methods
+const toggleLike = async (recipe: Recipe) => {
+  try {
+    if (!user?.id) {
+      toastRef?.value?.addToast('info', 'Please login to like recipes');
+      return;
+    }
+
+    recipe.isLiked = !recipe.isLiked;
+    const res = recipe.isLiked
+      ? await api.recipes.likeRecipe(recipe.id)
+      : await api.recipes.unlikeRecipe(recipe.id);
+
+    toastRef?.value?.addToast('success', res.message || 'Action completed');
+  } catch (err) {
+    console.error('Error toggling like:', err);
+    recipe.isLiked = !recipe.isLiked; // Revert on error
+    toastRef?.value?.addToast('error', 'Failed to toggle like');
+  }
+};
+
 const toggleBookmark = async (recipe: Recipe) => {
   try {
-    // TODO: Implement bookmark functionality using api.post
-    console.log('Bookmark toggled for recipe:', recipe.id)
+    if (!user?.id) {
+      toastRef?.value?.addToast('info', 'Please login to bookmark recipes');
+      return;
+    }
+
+    recipe.isBookmarked = !recipe.isBookmarked;
+    const res = recipe.isBookmarked
+      ? await api.recipes.bookmarkRecipe(recipe.id)
+      : await api.recipes.unbookmarkRecipe(recipe.id);
+
+    toastRef?.value?.addToast('success', res.message || 'Action completed');
   } catch (err) {
-    console.error('Failed to toggle bookmark:', err)
+    console.error('Error toggling bookmark:', err);
+    recipe.isBookmarked = !recipe.isBookmarked; // Revert on error
+    toastRef?.value?.addToast('error', 'Failed to toggle bookmark');
   }
-}
+};
 
 // Page meta
 useHead({
@@ -342,4 +437,20 @@ useHead({
     }
   ]
 })
-</script> 
+</script>
+
+<style scoped>
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style> 
