@@ -75,7 +75,7 @@
           >
             <UCard
               class="group hover:shadow-lg transition-shadow h-full"
-              @click="navigateTo(`/recipes/${recipe.id}`)"
+              @click="navigateTo(`/recipes`)"
             >
               <template #header>
                 <div class="relative aspect-video overflow-hidden rounded-t-lg">
@@ -232,6 +232,24 @@ const toastRef = inject<ToastRef>('toast')
 const featuredRecipes = [
   {
     id: 1,
+    title: 'Ethiopian Doro Wat (Spicy Chicken Stew)',
+    description: 'Doro Wat is a deeply spiced, slow-cooked Ethiopian chicken stew made with caramelized onions, berbere spice, and tender chicken pieces. Traditionally served with injera (Ethiopian sour flatbread) and hard-boiled eggs, it’s a bold, comforting dish full of layers of flavor — perfect for special occasions or family gatherings.',
+    featured_image: '/images/doro.jpg',
+    preparation_time: 50,
+    rating: 4.9,
+    isBookmarked: false,
+    category: {
+      id: 'mexican',
+      name: 'Lunch',
+      color: 'secondary'
+    },
+    user: {
+      username: 'Betselot Abraham',
+      profile_picture: '/images/avatars/sweet-tooth.jpg'
+    }
+  },
+  {
+    id: 2,
     title: 'Classic Italian Pasta',
     description: 'A traditional Italian pasta recipe with fresh ingredients and authentic flavors.',
     featured_image: '/images/categories/italy.jpeg',
@@ -239,17 +257,17 @@ const featuredRecipes = [
     rating: 4.8,
     isBookmarked: false,
     category: {
-      id: 1,
+      id: 'italians',
       name: 'Italian',
       color: 'primary'
     },
     user: {
-      username: 'ChefJohn',
+      username: 'Chef.Aweke',
       profile_picture: '/images/avatars/Pizza.jpg'
     }
   },
   {
-    id: 2,
+    id: 3,
     title: 'Healthy Buddha Bowl',
     description: 'A nutritious and colorful bowl packed with protein, vegetables, and whole grains.',
     featured_image: '/images/categories/dessert.jpg',
@@ -257,59 +275,41 @@ const featuredRecipes = [
     rating: 4.6,
     isBookmarked: true,
     category: {
-      id: 2,
+      id: 'healthy',
       name: 'Healthy',
       color: 'success'
     },
     user: {
-      username: 'HealthyEats',
+      username: 'MahiTesfa',
       profile_picture: '/images/categories/healthy-eats.jpg'
     }
   },
-  {
-    id: 3,
-    title: 'Mexican Tacos',
-    description: 'A decadent dessert with a molten chocolate center and a perfect crust.',
-    featured_image: '/images/categories/mexican.jpg',
-    preparation_time: 20,
-    rating: 4.9,
-    isBookmarked: false,
-    category: {
-      id: 3,
-      name: 'Desserts',
-      color: 'secondary'
-    },
-    user: {
-      username: 'SweetTooth',
-      profile_picture: '/images/avatars/sweet-tooth.jpg'
-    }
-  }
 ]
 
 // Mock categories (replace with API data)
 const categories = ref([
   {
-    id: 1,
+    id: "italian",
     name: 'Italian',
     image_url: '/images/categories/italy.jpeg'
   },
   {
-    id: 2,
+    id: "asian",
     name: 'Asian',
     image_url: '/images/categories/asian.jpg'
   },
   {
-    id: 3,
+    id: "mexican",
     name: 'Mexican',
     image_url: '/images/categories/mexican.jpg'
   },
   {
-    id: 4,
-    name: 'Desserts',
-    image_url: '/images/categories/dessert.jpg'
+    id: "Lunch",
+    name: 'Ethipian',
+    image_url: '/images/doro.jpg'
   },
   {
-    id: 5,
+    id: "vegetarian",
     name: 'Vegetarian',
     image_url: '/images/categories/vegi.jpg'
   }
