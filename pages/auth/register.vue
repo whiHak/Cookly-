@@ -27,7 +27,7 @@
                   type="text"
                   required
                   class="block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="John"
+                  placeholder="Bets"
                 />
               </div>
             </div>
@@ -40,7 +40,7 @@
                   type="text"
                   required
                   class="block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="Doe"
+                  placeholder="Abrh"
                 />
               </div>
             </div>
@@ -55,7 +55,7 @@
                 type="text"
                 required
                 class="block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="johndoe"
+                placeholder="betsAbr"
               />
             </div>
           </div>
@@ -69,7 +69,7 @@
                 type="email"
                 required
                 class="block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="john@example.com"
+                placeholder="bets@example.com"
               />
             </div>
           </div>
@@ -227,9 +227,10 @@ const handleRegister = async () => {
   try {
     const auth = useAuth()
     await auth.register({
-      name: `${firstName.value} ${lastName.value}`,
+      full_name: `${firstName.value} ${lastName.value}`,
       email: email.value,
       password: password.value,
+      username: username.value,
     })
     
     toastRef?.value?.addToast('success', 'Registration successful')

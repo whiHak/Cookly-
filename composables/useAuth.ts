@@ -21,10 +21,12 @@ export const useAuth = () => {
 
   // Register user
   const register = async (userData: {
-    name: string
+    full_name: string
     email: string
     password: string
+    username: string
   }) => {
+    console.log('Registering user:', userData)
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
         method: 'POST',
