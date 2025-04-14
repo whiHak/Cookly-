@@ -129,6 +129,8 @@ This project is licensed under the MIT License.
 
 - Betselot Abraham - Initial work
 
+You can find this project's backend with Cookly-s-Backend respository 
+
 ## 🙏 Acknowledgments
 
 - Nuxt.js Team
