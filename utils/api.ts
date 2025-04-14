@@ -191,20 +191,67 @@ export const api = {
     },
   },
   chapa:{
-    async checkPayment(tx_ref:string | null){
-      var myHeaders = new Headers();
-      myHeaders.append("Authorization", `Bearer CHAPUBK_TEST-muTH7hFJtECAeDvLZww1qEpMZkrD6hMh`);
-      const paymentResponse = await fetch(
-        `https://api.chapa.co/v1/transaction/verify/${tx_ref}`,
-        {
-          method: "GET",
-          headers: myHeaders,
-          redirect: "follow",
+    async checkPayment(recipeId:string | null): Promise<boolean> {
+      if (!recipeId) return false;
+      
+      try {
+        // Check purchased recipes
+        const purchasedRecipes = JSON.parse(localStorage.getItem('purchasedRecipes') || '[]');
+        if (purchasedRecipes.includes(recipeId)) {
+          return true;
         }
-      );
-      const chapaRespose = await paymentResponse.json();
-      console.log(paymentResponse)
-      return chapaRespose?.data?.status
+
+        // Check transaction history
+        const transactions = JSON.parse(localStorage.getItem('transactions') || '{}');
+        if (transactions[recipeId]) {
+          // If we find a transaction for this recipe, add it to purchased recipes
+          this.savePurchase(recipeId);
+          return true;
+        }
+
+        return false;
+      } catch (error) {
+        console.error('Payment check error:', error);
+        return false;
+      }
+    },
+
+    savePurchase(recipeId: string): void {
+      try {
+        // Get current purchased recipes
+        const purchasedRecipes = JSON.parse(localStorage.getItem('purchasedRecipes') || '[]');
+        
+        // Add new recipe if not already purchased
+        if (!purchasedRecipes.includes(recipeId)) {
+          purchasedRecipes.push(recipeId);
+          localStorage.setItem('purchasedRecipes', JSON.stringify(purchasedRecipes));
+          
+          // Also store the purchase timestamp
+          const purchases = JSON.parse(localStorage.getItem('purchases') || '{}');
+          purchases[recipeId] = {
+            timestamp: new Date().toISOString(),
+            status: 'completed'
+          };
+          localStorage.setItem('purchases', JSON.stringify(purchases));
+        }
+      } catch (error) {
+        console.error('Error saving purchase:', error);
+      }
+    },
+
+    getPurchaseDetails(recipeId: string): any {
+      try {
+        const transactions = JSON.parse(localStorage.getItem('transactions') || '{}');
+        const purchases = JSON.parse(localStorage.getItem('purchases') || '{}');
+        
+        return {
+          transaction: transactions[recipeId] || null,
+          purchase: purchases[recipeId] || null
+        };
+      } catch (error) {
+        console.error('Error getting purchase details:', error);
+        return null;
+      }
     }
   }
 };
