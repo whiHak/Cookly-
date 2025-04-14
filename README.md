@@ -127,7 +127,7 @@ This project is licensed under the MIT License.
 
 ## 👥 Contributors
 
-- Your Name - Initial work
+- Betselot Abraham - Initial work
 
 ## 🙏 Acknowledgments
 
