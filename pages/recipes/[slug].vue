@@ -15,7 +15,7 @@
     </div>
 
     <!-- Recipe Content -->
-    <div v-if="!loading && !error">
+    <div v-if="!loading && !error" class="relative">
       <!-- Recipe Header -->
       <div class="relative mb-8">
         <div class="aspect-[16/9] overflow-hidden rounded-lg">
@@ -40,55 +40,59 @@
         <!-- Main Content -->
         <div class="lg:col-span-2">
           <!-- Ingredients -->
-          <div class="mb-8">
+          <div class="mb-8 relative">
             <h2 class="text-2xl font-semibold">Ingredients</h2>
-            <ul class="mt-4 space-y-4">
-              <li
-                v-for="(ingredient, index) in recipe.ingredients"
-                :key="index"
-                class="flex items-center gap-4 p-2 rounded-lg bg-gray-50 shadow-sm"
-              >
-                <input
-                  type="checkbox"
-                  class="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <div class="flex flex-row gap-2 items-center">
-                  <span class="text-primary-foreground font-medium">
-                    {{ ingredient.quantity }} {{ ingredient.unit }}
-                  </span>
-                  <span class="text-muted-foreground"> - {{
-                    ingredient.name
-                  }}</span>
-                </div>
-              </li>
-            </ul>
+            <div class="recipe-content" :class="{'blur-content': !isPaid && recipe.price > 0}">
+              <ul class="mt-4 space-y-4">
+                <li
+                  v-for="(ingredient, index) in recipe.ingredients"
+                  :key="index"
+                  class="flex items-center gap-4 p-2 rounded-lg bg-gray-50 shadow-sm"
+                >
+                  <input
+                    type="checkbox"
+                    class="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <div class="flex flex-row gap-2 items-center">
+                    <span class="text-primary-foreground font-medium">
+                      {{ ingredient.quantity }} {{ ingredient.unit }}
+                    </span>
+                    <span class="text-muted-foreground"> - {{
+                      ingredient.name
+                    }}</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </div>
 
           <!-- Instructions -->
-          <div class="mb-8">
+          <div class="mb-8 relative">
             <h2 class="text-2xl font-semibold">Instructions</h2>
-            <ol class="mt-4 space-y-6">
-              <li
-                v-for="(step, index) in recipe.steps"
-                :key="index"
-                class="flex gap-4 items-start"
-              >
-                <div
-                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground"
+            <div class="recipe-content" :class="{'blur-content': !isPaid && recipe.price > 0}">
+              <ol class="mt-4 space-y-6">
+                <li
+                  v-for="(step, index) in recipe.steps"
+                  :key="index"
+                  class="flex gap-4 items-start"
                 >
-                  {{ step.step_number }}
-                </div>
-                <div>
-                  <p class="text-muted-foreground">{{ step.description }}</p>
-                  <img
-                    v-if="step.image_url"
-                    :src="step.image_url"
-                    :alt="`Step ${step.step_number}`"
-                    class="mt-2 rounded-lg shadow-md"
-                  />
-                </div>
-              </li>
-            </ol>
+                  <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground"
+                  >
+                    {{ step.step_number }}
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">{{ step.description }}</p>
+                    <img
+                      v-if="step.image_url"
+                      :src="step.image_url"
+                      :alt="`Step ${step.step_number}`"
+                      class="mt-2 rounded-lg shadow-md"
+                    />
+                  </div>
+                </li>
+              </ol>
+            </div>
           </div>
 
           <!-- Comments Section -->
@@ -167,13 +171,14 @@
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-muted-foreground">Price</span>
-                  <span>{{
-                    recipe.price == 0 ? "Free" : `$` + recipe.price
+                  <span v-if="isCreator">Your Recipe</span>
+                  <span v-else>{{
+                    recipe.price == 0 ? "Free" : `ETB ` + recipe.price
                   }}</span>
                 </div>
               </div>
-              <div v-if="recipe.price > 0" class="mt-4">
-                <form method="POST" action="https://api.chapa.co/v1/hosted/pay">
+              <div v-if="showPaymentOverlay" class="mt-4">
+                <form method="POST" action="https://api.chapa.co/v1/hosted/pay" @submit="handlePurchaseClick">
                   <input
                     type="hidden"
                     name="public_key"
@@ -182,21 +187,22 @@
                   <input
                     type="hidden"
                     name="tx_ref"
-                    value="negade-tx-12345678ssdfgs9"
+                    :value="tx_ref"
                   />
                   <input type="hidden" name="amount" :value="recipe.price" />
                   <input type="hidden" name="currency" value="ETB" />
-                  <input type="hidden" name="first_name" value="Israel" />
-                  <input type="hidden" name="last_name" value="Goytom" />
+                  <input type="hidden" name="email" :value="user?.email || 'customer@example.com'" />
+                  <input type="hidden" name="first_name" :value="user?.fullName?.split(' ')[0] || 'Customer'" />
+                  <input type="hidden" name="last_name" :value="user?.fullName?.split(' ')[1] || 'Name'" />
                   <input type="hidden" name="title" :value="recipe.title" />
-                  <input type="hidden" name="description" value="Paying with Confidence with cha"/>
+                  <input type="hidden" name="description" :value="`Purchase recipe: ${recipe.title}`"/>
                   <input type="hidden" name="logo" value="https://chapa.link/asset/images/chapa_swirl.svg"/>
-                  <input type="hidden" name="callback_url" value="https://localhost:3000/recipes"/>
-                  <input type="hidden" name="return_url" value="https://localhost:3000/recipes"/>
+                  <input type="hidden" name="callback_url" :value="returnUrl"/>
+                  <input type="hidden" name="return_url" :value="returnUrl"/>
                   <button
                     class="w-full rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark shadow-lg"
                   >
-                    Pay Now
+                    Purchase Recipe
                   </button>
                 </form>
               </div>
@@ -285,13 +291,53 @@
           </div>
         </div>
       </div>
+
+      <!-- Payment Required Overlay -->
+      <div v-if="showPaymentOverlay" class="payment-required-overlay">
+        <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+          <h3 class="text-xl font-semibold mb-4">Premium Recipe</h3>
+          <p class="mb-4">Purchase this recipe to view the full content</p>
+          <p class="text-2xl font-bold mb-4">ETB {{ recipe.price }}</p>
+          <form method="POST" action="https://api.chapa.co/v1/hosted/pay" @submit="handlePurchaseClick">
+            <input
+              type="hidden"
+              name="public_key"
+              :value="chapaPublicKey"
+            />
+            <input
+              type="hidden"
+              name="tx_ref"
+              :value="tx_ref"
+            />
+            <input type="hidden" name="amount" :value="recipe.price" />
+            <input type="hidden" name="currency" value="ETB" />
+            <input type="hidden" name="email" :value="user?.email || 'customer@example.com'" />
+            <input type="hidden" name="first_name" :value="user?.fullName?.split(' ')[0] || 'Customer'" />
+            <input type="hidden" name="last_name" :value="user?.fullName?.split(' ')[1] || 'Name'" />
+            <input type="hidden" name="title" :value="recipe.title" />
+            <input type="hidden" name="description" :value="`Purchase recipe: ${recipe.title}`"/>
+            <input type="hidden" name="logo" value="https://chapa.link/asset/images/chapa_swirl.svg"/>
+            <input type="hidden" name="callback_url" :value="returnUrl"/>
+            <input type="hidden" name="return_url" :value="returnUrl"/>
+            <button class="w-full rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark shadow-lg">
+              Purchase Recipe
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Creator Banner -->
+      <div v-if="isCreator" class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4">
+        <p class="font-bold">Creator Access</p>
+        <p>You created this recipe. You have full access to all content.</p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { ref, onMounted, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { DEFAULT_AVATAR } from "~/constants";
 
@@ -306,6 +352,7 @@ interface ToastRef {
 
 const toastRef = inject<ToastRef>("toast");
 const route = useRoute();
+const router = useRouter();
 
 let user = null;
 
@@ -315,6 +362,7 @@ if (typeof window !== "undefined") {
 
 
 const chapaPublicKey = process.env.NUXT_PUBLIC_CHAPA_PUBLIC_KEY;
+
 // State
 const recipe = ref<any>(null);
 const loading = ref(true);
@@ -342,6 +390,9 @@ const comments = ref<
   }>
 >([]);
 const newComment = ref("");
+
+// State for payment
+const isPaid = ref(false);
 
 // Methods
 const rateRecipe = async (rating: number) => {
@@ -442,6 +493,8 @@ const fetchComments = async () => {
   }
 };
 
+
+let tx_ref:string | null = null;
 // Fetch Recipe
 const fetchRecipe = async () => {
   try {
@@ -463,7 +516,21 @@ const fetchRecipe = async () => {
         unit: ingredient.unit,
       })),
       categories: data.categories || [],
+      user: data.user[0],
     };
+
+    // Generate tx_ref with more details
+    const timestamp = new Date().getTime();
+    const userId = user?.id || 'guest';
+    tx_ref = `TX-${recipe.value.id}-${timestamp}-${userId}`;
+    
+    // Check payment status
+    if (recipe.value.price > 0) {
+      await checkPament();
+    } else {
+      isPaid.value = true;
+    }
+
   } catch (err) {
     console.error("Error fetching recipe:", err);
     error.value = true;
@@ -472,9 +539,142 @@ const fetchRecipe = async () => {
   }
 };
 
+const returnUrl = computed(() => {
+  if (typeof window === 'undefined') return '';
+  return `${window.location.origin}${window.location.pathname}`;
+});
+
+// Add function to handle purchase click
+const handlePurchaseClick = (e: Event) => {
+  e.preventDefault();
+  
+  if (!user?.id) {
+    // Store the current URL to redirect back after login
+    localStorage.setItem('redirectAfterLogin', window.location.pathname);
+    
+    // Show message
+    toastRef?.value?.addToast('info', 'Please login to purchase this recipe');
+    
+    // Redirect to login
+    router.push('/auth/login');
+    return;
+  }
+  
+  // If user is logged in, submit the form
+  const form = e.target as HTMLFormElement;
+  form.submit();
+};
+
+// Update the payment verification
+const checkPament = async() => {
+  try {
+    // Check if recipe is free
+    if (!recipe.value?.id || recipe.value.price === 0) {
+      isPaid.value = true;
+      return;
+    }
+
+    // Check if current user is the recipe creator
+    if (user?.id && recipe.value.user?.id === user.id) {
+      isPaid.value = true;
+      console.log('Recipe creator accessed their own recipe');
+      return;
+    }
+    
+    // Check localStorage first for quick response
+    const res = await api.chapa.checkPayment(recipe.value.id);
+    if (res) {
+      isPaid.value = true;
+      return;
+    }
+    
+    // Check URL parameters for new payments
+    const urlParams = new URLSearchParams(window.location.search);
+    const status = urlParams.get('status');
+    const tx_ref_param = urlParams.get('tx_ref');
+    
+    if (status === 'success' && tx_ref_param) {
+      // Verify payment with server
+      const verificationResult = await fetch(`/api/check-payment?tx_ref=${tx_ref_param}`);
+      const verification = await verificationResult.json();
+      
+      if (verification.success) {
+        // Save the purchase
+        api.chapa.savePurchase(recipe.value.id);
+        isPaid.value = true;
+        
+        // Clean up URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+        
+        // Show success message
+        toastRef?.value?.addToast('success', 'Recipe purchased successfully!');
+      } else {
+        console.error('Payment verification failed:', verification.error);
+        toastRef?.value?.addToast('error', 'Payment verification failed. Please contact support.');
+      }
+    }
+    
+    if (!isPaid.value) {
+      console.log('Recipe not purchased. User needs to purchase the recipe.');
+    }
+  } catch (error) {
+    console.error('Error checking payment:', error);
+    isPaid.value = false;
+  }
+};
+
+// Update the payment overlay to show different message for recipe creator
+const showPaymentOverlay = computed(() => {
+  if (!recipe.value?.price || recipe.value.price === 0) return false;
+  if (isPaid.value) return false;
+  if (user?.id && recipe.value.user?.id === user.id) {
+    return false;
+  }
+  return true;
+});
+
+// Add a banner to show when user is the creator
+const isCreator = computed(() => {
+  return user?.id && recipe.value?.user?.id === user.id;
+});
+
+// Add this CSS class
+const blurClass = computed(() => ({
+  'filter': !isPaid.value ? 'blur(5px)' : 'none',
+  'pointer-events': !isPaid.value ? 'none' : 'auto'
+}));
+
 // Fetch recipe and comments on component mount
-onMounted(() => {
-  fetchRecipe();
-  fetchComments();
+onMounted(async () => {
+  await fetchRecipe(); // Wait for recipe to load first
+  await fetchComments();
 });
 </script>
+
+<style scoped>
+.recipe-content {
+  transition: all 0.3s ease;
+}
+
+.blur-content {
+  filter: blur(8px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.payment-required-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+/* Remove the old overlay styles */
+</style>
