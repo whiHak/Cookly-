@@ -42,7 +42,7 @@
           <!-- Ingredients -->
           <div class="mb-8 relative">
             <h2 class="text-2xl font-semibold">Ingredients</h2>
-            <div class="recipe-content" :class="{'blur-content': !isPaid && recipe.price > 0}">
+            <div class="recipe-content" :class="{'blur-content': !isPaid && recipe.price > 0 && !isCreator}">
               <ul class="mt-4 space-y-4">
                 <li
                   v-for="(ingredient, index) in recipe.ingredients"
@@ -69,7 +69,7 @@
           <!-- Instructions -->
           <div class="mb-8 relative">
             <h2 class="text-2xl font-semibold">Instructions</h2>
-            <div class="recipe-content" :class="{'blur-content': !isPaid && recipe.price > 0}">
+            <div class="recipe-content" :class="{'blur-content': !isPaid && recipe.price > 0 && !isCreator}">
               <ol class="mt-4 space-y-6">
                 <li
                   v-for="(step, index) in recipe.steps"
@@ -171,8 +171,7 @@
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-muted-foreground">Price</span>
-                  <span v-if="isCreator">Your Recipe</span>
-                  <span v-else>{{
+                  <span>{{
                     recipe.price == 0 ? "Free" : `ETB ` + recipe.price
                   }}</span>
                 </div>
@@ -327,7 +326,7 @@
       </div>
 
       <!-- Creator Banner -->
-      <div v-if="isCreator" class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4">
+      <div v-if="isCreator" class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 my-6">
         <p class="font-bold">Creator Access</p>
         <p>You created this recipe. You have full access to all content.</p>
       </div>
@@ -340,6 +339,20 @@ import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { DEFAULT_AVATAR } from "~/constants";
+import { api } from "~/utils/api";
+
+const API_BASE_URL = process.env.NUXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+// Helper function to get auth headers
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("No authentication token found");
+  }
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
 
 interface ToastRef {
   value: {
@@ -520,9 +533,8 @@ const fetchRecipe = async () => {
     };
 
     // Generate tx_ref with more details
-    const timestamp = new Date().getTime();
     const userId = user?.id || 'guest';
-    tx_ref = `TX-${recipe.value.id}-${timestamp}-${userId}`;
+    tx_ref = `TX-${recipe.value.id}-${userId}`.toString();
     
     // Check payment status
     if (recipe.value.price > 0) {
@@ -568,55 +580,23 @@ const handlePurchaseClick = (e: Event) => {
 // Update the payment verification
 const checkPament = async() => {
   try {
-    // Check if recipe is free
-    if (!recipe.value?.id || recipe.value.price === 0) {
-      isPaid.value = true;
-      return;
-    }
-
-    // Check if current user is the recipe creator
-    if (user?.id && recipe.value.user?.id === user.id) {
-      isPaid.value = true;
-      console.log('Recipe creator accessed their own recipe');
-      return;
-    }
+    if (!tx_ref) return;
     
-    // Check localStorage first for quick response
-    const res = await api.chapa.checkPayment(recipe.value.id);
-    if (res) {
-      isPaid.value = true;
-      return;
-    }
-    
-    // Check URL parameters for new payments
-    const urlParams = new URLSearchParams(window.location.search);
-    const status = urlParams.get('status');
-    const tx_ref_param = urlParams.get('tx_ref');
-    
-    if (status === 'success' && tx_ref_param) {
-      // Verify payment with server
-      const verificationResult = await fetch(`/api/check-payment?tx_ref=${tx_ref_param}`);
-      const verification = await verificationResult.json();
-      
-      if (verification.success) {
-        // Save the purchase
-        api.chapa.savePurchase(recipe.value.id);
-        isPaid.value = true;
-        
-        // Clean up URL
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, newUrl);
-        
-        // Show success message
-        toastRef?.value?.addToast('success', 'Recipe purchased successfully!');
-      } else {
-        console.error('Payment verification failed:', verification.error);
-        toastRef?.value?.addToast('error', 'Payment verification failed. Please contact support.');
+    const verificationResult = await fetch(`${API_BASE_URL}/payments/verify/${tx_ref}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
       }
-    }
+    });
     
-    if (!isPaid.value) {
-      console.log('Recipe not purchased. User needs to purchase the recipe.');
+    const verification = await verificationResult.json();
+    if (verification.status === 'success') {
+      isPaid.value = true;
+      // Save the purchase details
+      api.chapa.savePurchase(recipe.value.id);
+    } else {
+      isPaid.value = false;
     }
   } catch (error) {
     console.error('Error checking payment:', error);
@@ -638,12 +618,6 @@ const showPaymentOverlay = computed(() => {
 const isCreator = computed(() => {
   return user?.id && recipe.value?.user?.id === user.id;
 });
-
-// Add this CSS class
-const blurClass = computed(() => ({
-  'filter': !isPaid.value ? 'blur(5px)' : 'none',
-  'pointer-events': !isPaid.value ? 'none' : 'auto'
-}));
 
 // Fetch recipe and comments on component mount
 onMounted(async () => {

@@ -133,6 +133,10 @@
                           class="bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
                       Your Recipe
                     </span>
+                    <span v-else-if="recipe.isPaid" 
+                          class="bg-primary text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                      Paid
+                    </span>
                     <span v-else-if="recipe.price > 0" 
                           class="bg-primary text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
                       ETB {{ recipe.price }}
@@ -260,6 +264,7 @@ interface Recipe {
   rating?: number;
   isLiked: boolean;
   isBookmarked: boolean;
+  isPaid: boolean;
   created_at?: string;
 }
 
@@ -291,11 +296,15 @@ const fetchRecipes = async () => {
     loading.value = true
     error.value = null
     const data = await api.recipes.getAll()
-    recipes.value = data.map(recipe => ({
+    recipes.value = data.map(recipe => {
+      const isPaid = api.chapa.checkPayment(recipe.id)
+      return ({
       ...recipe,
       isLiked: false,
-      isBookmarked: false
-    }))
+      isBookmarked: false,
+      isPaid
+    })
+    })
   } catch (err) {
     console.error('Error fetching recipes:', err)
     if (err instanceof Error && 'status' in err) {

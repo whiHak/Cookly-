@@ -191,18 +191,21 @@ export const api = {
     },
   },
   chapa:{
-    async checkPayment(recipeId:string | null): Promise<boolean> {
+     checkPayment(recipeId:string | null) {
       if (!recipeId) return false;
       
       try {
-        // Check purchased recipes
-        const purchasedRecipes = JSON.parse(localStorage.getItem('purchasedRecipes') || '[]');
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!currentUser?.id) return false;
+
+        // Check purchased recipes for current user
+        const purchasedRecipes = JSON.parse(localStorage.getItem(`purchasedRecipes_${currentUser.id}`) || '[]');
         if (purchasedRecipes.includes(recipeId)) {
           return true;
         }
 
-        // Check transaction history
-        const transactions = JSON.parse(localStorage.getItem('transactions') || '{}');
+        // Check transaction history for current user
+        const transactions = JSON.parse(localStorage.getItem(`transactions_${currentUser.id}`) || '{}');
         if (transactions[recipeId]) {
           // If we find a transaction for this recipe, add it to purchased recipes
           this.savePurchase(recipeId);
@@ -218,21 +221,24 @@ export const api = {
 
     savePurchase(recipeId: string): void {
       try {
-        // Get current purchased recipes
-        const purchasedRecipes = JSON.parse(localStorage.getItem('purchasedRecipes') || '[]');
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!currentUser?.id) return;
+
+        // Get current purchased recipes for this user
+        const purchasedRecipes = JSON.parse(localStorage.getItem(`purchasedRecipes_${currentUser.id}`) || '[]');
         
         // Add new recipe if not already purchased
         if (!purchasedRecipes.includes(recipeId)) {
           purchasedRecipes.push(recipeId);
-          localStorage.setItem('purchasedRecipes', JSON.stringify(purchasedRecipes));
+          localStorage.setItem(`purchasedRecipes_${currentUser.id}`, JSON.stringify(purchasedRecipes));
           
           // Also store the purchase timestamp
-          const purchases = JSON.parse(localStorage.getItem('purchases') || '{}');
+          const purchases = JSON.parse(localStorage.getItem(`purchases_${currentUser.id}`) || '{}');
           purchases[recipeId] = {
             timestamp: new Date().toISOString(),
             status: 'completed'
           };
-          localStorage.setItem('purchases', JSON.stringify(purchases));
+          localStorage.setItem(`purchases_${currentUser.id}`, JSON.stringify(purchases));
         }
       } catch (error) {
         console.error('Error saving purchase:', error);
@@ -241,8 +247,11 @@ export const api = {
 
     getPurchaseDetails(recipeId: string): any {
       try {
-        const transactions = JSON.parse(localStorage.getItem('transactions') || '{}');
-        const purchases = JSON.parse(localStorage.getItem('purchases') || '{}');
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!currentUser?.id) return null;
+
+        const transactions = JSON.parse(localStorage.getItem(`transactions_${currentUser.id}`) || '{}');
+        const purchases = JSON.parse(localStorage.getItem(`purchases_${currentUser.id}`) || '{}');
         
         return {
           transaction: transactions[recipeId] || null,
