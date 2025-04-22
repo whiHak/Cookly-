@@ -105,28 +105,36 @@
                     :to="`/profile/${user?.username || ''}`"
                     class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
                   >
-                    <Icon name="lucide:user" class="h-4 w-4" />
+                    <User
+                    :size="18"
+                    />
                     Profile
                   </NuxtLink>
                   <NuxtLink 
                     to="/recipes/create"
                     class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
                   >
-                    <Icon name="lucide:plus-circle" class="h-4 w-4" />
+                    <PlusCircle
+                    :size="18"
+                    />
                     Create Recipe
                   </NuxtLink>
                   <NuxtLink 
                     to="/profile/settings"
                     class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
                   >
-                    <Icon name="lucide:settings" class="h-4 w-4" />
+                    <Settings
+                    :size="18"
+                    />
                     Settings
                   </NuxtLink>
                   <button 
                     class="flex w-full items-center gap-2 px-2 py-2 text-sm rounded-md text-destructive hover:bg-destructive hover:text-destructive-foreground"
                     @click="handleLogout"
                   >
-                    <Icon name="lucide:log-out" class="h-4 w-4" />
+                    <LogOut
+                      :size="18"
+                    />
                     Logout
                   </button>
                 </div>
@@ -352,6 +360,7 @@ import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessu
 import { useEventListener, onClickOutside } from '@vueuse/core'
 import { useUserStore } from '~/stores/useUserStore'
 import { DEFAULT_AVATAR } from '~/constants'
+import { User, PlusCircle, Settings, LogOut} from 'lucide-vue-next';
 
 interface Recipe {
   id: number
