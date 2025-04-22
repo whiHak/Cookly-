@@ -217,7 +217,7 @@
                 <NuxtLink
                   v-for="category in recipe.categories"
                   :key="category.id"
-                  :to="`/categories/${category.name}`"
+                  :to="`/recipes?category=${category.name}`"
                   class="rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground hover:bg-muted/80"
                 >
                   {{ category.name }}
@@ -287,6 +287,33 @@
                 </button>
               </div>
             </div>
+
+            <!-- Creator Actions -->
+            <div v-if="isCreator" class="space-y-4">
+              <!-- Creator Banner -->
+              <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4">
+                <p class="font-bold">Creator Access</p>
+                <p>You created this recipe. You have full access to all content.</p>
+              </div>
+              
+              <!-- Creator Actions -->
+              <div class="flex gap-4">
+                <button
+                  @click="navigateToEdit"
+                  class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+                >
+                  <Icon name="lucide:edit" class="w-4 h-4" />
+                  Edit Recipe
+                </button>
+                <button
+                  @click="showDeleteConfirm = true"
+                  class="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                >
+                  <Icon name="lucide:trash" class="w-4 h-4" />
+                  Delete Recipe
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -325,10 +352,28 @@
         </div>
       </div>
 
-      <!-- Creator Banner -->
-      <div v-if="isCreator" class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 my-6">
-        <p class="font-bold">Creator Access</p>
-        <p>You created this recipe. You have full access to all content.</p>
+      <!-- Delete Confirmation Dialog -->
+      <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+          <h3 class="text-lg font-semibold mb-2">Delete Recipe</h3>
+          <p class="text-gray-600 mb-4">
+            Are you sure you want to delete this recipe? This action cannot be undone.
+          </p>
+          <div class="flex justify-end gap-4">
+            <button
+              @click="showDeleteConfirm = false"
+              class="px-4 py-2 text-gray-600 hover:text-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              @click="handleDelete"
+              class="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -406,6 +451,9 @@ const newComment = ref("");
 
 // State for payment
 const isPaid = ref(false);
+
+// State for delete confirmation
+const showDeleteConfirm = ref(false);
 
 // Methods
 const rateRecipe = async (rating: number) => {
@@ -529,7 +577,7 @@ const fetchRecipe = async () => {
         unit: ingredient.unit,
       })),
       categories: data.categories || [],
-      user: data.user[0],
+      user: data.user ? data.user[0] : {},
     };
 
     // Generate tx_ref with more details
@@ -618,6 +666,27 @@ const showPaymentOverlay = computed(() => {
 const isCreator = computed(() => {
   return user?.id && recipe.value?.user?.id === user.id;
 });
+
+// Add function to navigate to edit page
+const navigateToEdit = () => {
+  router.push(`/recipes/${route.params.slug}/edit`);
+};
+
+// Add function to handle delete
+const handleDelete = async () => {
+  try {
+    if (!recipe.value?.id) return;
+    
+    await api.recipes.delete(recipe.value.id);
+    toastRef?.value?.addToast('success', 'Recipe deleted successfully');
+    router.push('/recipes');
+  } catch (err) {
+    console.error('Error deleting recipe:', err);
+    toastRef?.value?.addToast('error', 'Failed to delete recipe');
+  } finally {
+    showDeleteConfirm.value = false;
+  }
+};
 
 // Fetch recipe and comments on component mount
 onMounted(async () => {

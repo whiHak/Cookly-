@@ -1,12 +1,19 @@
 export interface Ingredient {
-  amount: string
-  unit: string
+  ingredient_id?: string
+  quantity: string
+  unit: string | null
   name: string
 }
 
 export interface Instruction {
   description: string
   image?: string
+}
+
+export interface Step {
+  step_number?: number
+  description: string
+  image_url?: string
 }
 
 export interface Recipe {
@@ -16,34 +23,32 @@ export interface Recipe {
   difficulty: string
   servings: number
   preparation_time: number
-  categories: {
+  categories: Array<{
     category_id: string
     name: string
-  }[]
-  user_id: string
-  user:{
+  }>
+  user?: Array<{
+    id: string
     full_name: string
     username: string
-  }[]
+  }>
   featured_image: string
-  price?: number | null
-  created_at: string
-  updated_at: string
-  steps?: {
-    step_number: number
-    description: string
-    image_url: string | null
-  }[]
-  ingredients?: {
-    ingredient_id: string
-    quantity: string
-    unit: string | null
-  }[]
+  price: number
+  created_at?: string
+  updated_at?: string
+  steps: Step[]
+  ingredients: Ingredient[]
   images?: {
     image_url: string
     is_featured: boolean
   }[]
-  rating: number
+  rating?: number
+  isLiked?: boolean
+  isBookmarked?: boolean
+  isPaid?: boolean
+  isFree?: boolean
+  notes?: string
+  tags?: string[]
 }
 
 export interface CreateRecipeDto {
@@ -52,31 +57,60 @@ export interface CreateRecipeDto {
   difficulty: string
   servings: number
   preparation_time: number
-  categories: {
+  categories: Array<{
     category_id: string
     name: string
-  }[]
-  featured_image: string // base64 image data
+  }>
+  featured_image: string
   price: number
-  steps: {
+  steps: Array<{
     step_number: number
     description: string
-    image_base64: string | null
-  }[]
-  ingredients: {
+    image_url?: string
+  }>
+  ingredients: Array<{
     ingredient_id: string
     quantity: string
     unit: string | null
-  }[]
+    name: string
+  }>
   images: {
     image_base64: string
     is_featured: boolean
   }[]
 }
 
-export interface Toggle{
-  message: string
-  status: string
+export interface UpdateRecipeDto extends Partial<CreateRecipeDto> {
+  title: string
+  description: string
 }
 
-export interface UpdateRecipeDto extends Partial<CreateRecipeDto> {} 
+export interface RecipeFormData {
+  title: string
+  description: string
+  featuredImage: string
+  prepTime: number
+  cookTime: number
+  servings: number
+  difficulty: string
+  price: number
+  categories: string[]
+  tags: string[]
+  ingredients: Ingredient[]
+  steps: Step[]
+  notes: string
+}
+
+export interface ValidationRule {
+  validate: (value: any) => boolean
+  message: string
+}
+
+export interface ValidationRules {
+  [key: string]: ValidationRule[]
+}
+
+export interface Toggle {
+  status: string
+  message: string
+} 

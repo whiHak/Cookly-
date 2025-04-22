@@ -114,8 +114,8 @@ export const api = {
       return privatePost<Recipe>("/recipes", data);
     },
 
-    async update(id: number, data: UpdateRecipeDto): Promise<Recipe> {
-      return privatePut<Recipe>(`/recipes/${id}`, data);
+    async update(slug: string, data: UpdateRecipeDto): Promise<Recipe> {
+      return privatePut<Recipe>(`/recipes/${slug}`, data);
     },
 
     async getById(id: number): Promise<Recipe> {
@@ -158,7 +158,7 @@ export const api = {
       return publicGet<Toggle>(`/recipes/${slug}/comments`);
     },
 
-    async delete(id: number): Promise<void> {
+    async delete(id: string): Promise<void> {
       return privateDelete(`/recipes/${id}`);
     },
 

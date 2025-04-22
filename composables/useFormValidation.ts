@@ -1,4 +1,5 @@
-import { ref, computed } from 'vue'
+import { ref, computed, unref } from 'vue'
+import type { Ref } from 'vue'
 
 export interface ValidationRule {
   validate: (value: any) => boolean
@@ -9,17 +10,18 @@ export interface ValidationRules {
   [key: string]: ValidationRule[]
 }
 
-export function useFormValidation<T extends Record<string, any>>(form: T, rules: ValidationRules) {
+export function useFormValidation<T extends Record<string, any>>(form: T | Ref<T>, rules: ValidationRules) {
   const errors = ref<Record<string, string[]>>({})
   const isValid = computed(() => Object.keys(errors.value).length === 0)
 
   const validateField = (field: keyof T) => {
     const fieldRules = rules[field as string]
-    if (!fieldRules) return
+    if (!fieldRules) return true
 
+    const formValue = unref(form)
     const fieldErrors: string[] = []
     for (const rule of fieldRules) {
-      if (!rule.validate(form[field])) {
+      if (!rule.validate(formValue[field])) {
         fieldErrors.push(rule.message)
       }
     }
