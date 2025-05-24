@@ -14,8 +14,11 @@ export default defineNuxtConfig({
     '@nuxt/image',
     '@vueuse/motion/nuxt',
     '@nuxtjs/tailwindcss',
-    '@pinia/nuxt'
+    '@pinia/nuxt',
+    // '@nuxtjs/apollo',
+    // '@vue/apollo-composable',
   ],
+  
   colorMode: {
     preference: 'dark',
     fallback: 'dark',
@@ -35,4 +38,10 @@ export default defineNuxtConfig({
       ]
     }
   },
+  runtimeConfig: {
+    public: {
+      hasuraEndpoint: process.env.NUXT_PUBLIC_HASURA_ENDPOINT,
+      apiUrl: process.env.NUXT_PUBLIC_API_URL,
+    }
+  }
 });

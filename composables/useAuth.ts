@@ -1,5 +1,8 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '~/stores/useUserStore'
+import { useMutation, useQuery, useApolloClient, provideApolloClient  } from '@vue/apollo-composable'
+import { LOGIN_MUTATION, REGISTER_MUTATION, GET_USER_PROFILE } from '~/utils/graphql-auth'
+import type { FetchResult } from '@apollo/client/core'
 
 interface User {
   id: string
@@ -10,14 +13,24 @@ interface User {
 
 interface AuthResponse {
   token: string
-  user_id: string
-  username: string
-  email: string
-  full_name: string
+  user: User
+}
+
+interface LoginData {
+  login: AuthResponse
+}
+
+interface RegisterData {
+  register: AuthResponse
 }
 
 export const useAuth = () => {
   const userStore = useUserStore()
+  const client = useApolloClient().client
+
+  provideApolloClient(client)
+  const { mutate: loginMutation } = useMutation<LoginData>(LOGIN_MUTATION)
+  const { mutate: registerMutation } = useMutation<RegisterData>(REGISTER_MUTATION)
 
   // Register user
   const register = async (userData: {
@@ -26,30 +39,28 @@ export const useAuth = () => {
     password: string
     username: string
   }) => {
-    console.log('Registering user:', userData)
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
+      const result = await registerMutation({
+        full_name: userData.full_name,
+        email: userData.email,
+        password: userData.password,
+        username: userData.username,
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Registration failed')
+      if (!result?.data) {
+        throw new Error('Registration failed')
       }
 
-      const data: AuthResponse = await response.json()
+      const response = result.data.register
       userStore.login({
-        token: data.token,
-        userID: data.user_id,
-        username: data.username,
-        email: data.email,
-        fullName: data.full_name
+        token: response.token,
+        userID: response.user.id,
+        username: response.user.username,
+        email: response.user.email,
+        fullName: response.user.full_name,
       })
-      return data
+
+      return response
     } catch (error) {
       console.error('Registration error:', error)
       throw error
@@ -59,28 +70,26 @@ export const useAuth = () => {
   // Login user
   const login = async (credentials: { email: string; password: string }) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
+      const result = await loginMutation({
+        email: credentials.email,
+        password: credentials.password
       })
+      console.log(result)
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Login failed')
+      if (!result?.data) {
+        throw new Error('Login failed')
       }
 
-      const data: AuthResponse = await response.json()
+      const response = result.data.login
       userStore.login({
-        token: data.token,
-        userID: data.user_id,
-        username: data.username,
-        email: data.email,
-        fullName: data.full_name
+        token: response.token,
+        userID: response.user.id,
+        username: response.user.username,
+        email: response.user.email,
+        fullName: response.user.full_name,
       })
-      return data
+
+      return response
     } catch (error) {
       console.error('Login error:', error)
       throw error
@@ -92,9 +101,14 @@ export const useAuth = () => {
     userStore.logout()
   }
 
+  // Get user profile
+  const { result: userProfile, loading: loadingProfile } = useQuery(GET_USER_PROFILE)
+
   return {
     user: computed(() => userStore.user),
     isAuthenticated: computed(() => userStore.isAuthenticated),
+    userProfile,
+    loadingProfile,
     register,
     login,
     logout,

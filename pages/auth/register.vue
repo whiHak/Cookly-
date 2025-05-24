@@ -211,6 +211,9 @@ const isLoading = ref(false)
 // Get toast component instance
 const toastRef = inject<ToastRef>('toast')
 
+// Use Auth composable at top-level
+const { register } = useAuth()
+
 // Methods
 const handleRegister = async () => {
   if (!firstName.value || !lastName.value || !username.value || !email.value || !password.value || !confirmPassword.value || !acceptTerms.value) {
@@ -225,8 +228,7 @@ const handleRegister = async () => {
 
   isLoading.value = true
   try {
-    const auth = useAuth()
-    await auth.register({
+    await register({
       full_name: `${firstName.value} ${lastName.value}`,
       email: email.value,
       password: password.value,

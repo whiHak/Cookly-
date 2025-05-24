@@ -1,0 +1,42 @@
+import { gql } from '@apollo/client/core'
+
+export const LOGIN_MUTATION = gql`
+  mutation Login($email: String!, $password: String!) {
+    login(email: $email, password: $password) {
+      token
+      user {
+        id
+        username
+        email
+        full_name
+      }
+    }
+  }
+`
+
+export const REGISTER_MUTATION = gql`
+  mutation Register($full_name: String!, $email: String!, $password: String!, $username: String!) {
+    register(full_name: $full_name, email: $email, password: $password, username: $username) {
+      token
+      user {
+        id
+        username
+        email
+        full_name
+      }
+    }
+  }
+`
+
+export const GET_USER_PROFILE = gql`
+  query GetUserProfile {
+    users {
+      id
+      username
+      email
+      full_name
+      created_at
+      updated_at
+    }
+  }
+` 
