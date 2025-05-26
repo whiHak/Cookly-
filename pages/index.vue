@@ -1,3 +1,129 @@
+<script setup lang="ts">
+        import { ref } from 'vue'
+        // import { useMotion } from '@vueuse/motion'
+        
+        // State
+        const email = ref('')
+        const isSubscribing = ref(false)
+        
+        interface ToastRef {
+          value: {
+            addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
+          } | null
+        }
+        const toastRef = inject<ToastRef>('toast')
+        
+        
+        // Mock featured recipes (replace with API data)
+        const featuredRecipes = [
+          {
+            id: 1,
+            title: 'Ethiopian Doro Wat (Spicy Chicken Stew)',
+            description: 'Doro Wat is a deeply spiced, slow-cooked Ethiopian chicken stew made with caramelized onions, berbere spice, and tender chicken pieces. Traditionally served with injera (Ethiopian sour flatbread) and hard-boiled eggs, it’s a bold, comforting dish full of layers of flavor — perfect for special occasions or family gatherings.',
+            featured_image: '/images/doro.jpg',
+            preparation_time: 50,
+            rating: 4.9,
+            isBookmarked: false,
+            category: {
+              id: 'mexican',
+              name: 'Lunch',
+              color: 'secondary'
+            },
+            user: {
+              username: 'Betselot Abraham',
+              profile_picture: '/images/avatars/sweet-tooth.jpg'
+            }
+          },
+          {
+            id: 2,
+            title: 'Classic Italian Pasta',
+            description: 'A traditional Italian pasta recipe with fresh ingredients and authentic flavors.',
+            featured_image: '/images/categories/italy.jpeg',
+            preparation_time: 30,
+            rating: 4.8,
+            isBookmarked: false,
+            category: {
+              id: 'italians',
+              name: 'Italian',
+              color: 'primary'
+            },
+            user: {
+              username: 'Chef.Aweke',
+              profile_picture: '/images/avatars/Pizza.jpg'
+            }
+          },
+          {
+            id: 3,
+            title: 'Healthy Buddha Bowl',
+            description: 'A nutritious and colorful bowl packed with protein, vegetables, and whole grains.',
+            featured_image: '/images/categories/dessert.jpg',
+            preparation_time: 25,
+            rating: 4.6,
+            isBookmarked: true,
+            category: {
+              id: 'healthy',
+              name: 'Healthy',
+              color: 'success'
+            },
+            user: {
+              username: 'MahiTesfa',
+              profile_picture: '/images/categories/healthy-eats.jpg'
+            }
+          },
+        ]
+        
+        // Mock categories (replace with API data)
+        const categories = ref([
+          {
+            id: "italian",
+            name: 'Italian',
+            image_url: '/images/categories/italy.jpeg'
+          },
+          {
+            id: "asian",
+            name: 'Asian',
+            image_url: '/images/categories/asian.jpg'
+          },
+          {
+            id: "mexican",
+            name: 'Mexican',
+            image_url: '/images/categories/mexican.jpg'
+          },
+          {
+            id: "Lunch",
+            name: 'Ethipian',
+            image_url: '/images/doro.jpg'
+          },
+          {
+            id: "vegetarian",
+            name: 'Vegetarian',
+            image_url: '/images/categories/vegi.jpg'
+          }
+        ])
+        
+        // Methods
+        const toggleBookmark = async (recipe: any) => {
+          // TODO: Implement bookmark functionality
+          recipe.isBookmarked = !recipe.isBookmarked
+        }
+        
+        const handleSubscribe = async () => {
+          toastRef?.value?.addToast('info', 'Comming soon')
+        
+        }
+        
+        // Page meta
+        useHead({
+          title: 'Home',
+          meta: [
+            {
+              name: 'description',
+              content: 'Discover and share amazing recipes from around the world. Join our community of food lovers.'
+            }
+          ]
+        })
+</script> 
+
 <template>
   <div>
     <!-- Hero Section -->
@@ -211,129 +337,3 @@
     </section>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue'
-// import { useMotion } from '@vueuse/motion'
-
-// State
-const email = ref('')
-const isSubscribing = ref(false)
-
-interface ToastRef {
-  value: {
-    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
-  } | null
-}
-const toastRef = inject<ToastRef>('toast')
-
-
-// Mock featured recipes (replace with API data)
-const featuredRecipes = [
-  {
-    id: 1,
-    title: 'Ethiopian Doro Wat (Spicy Chicken Stew)',
-    description: 'Doro Wat is a deeply spiced, slow-cooked Ethiopian chicken stew made with caramelized onions, berbere spice, and tender chicken pieces. Traditionally served with injera (Ethiopian sour flatbread) and hard-boiled eggs, it’s a bold, comforting dish full of layers of flavor — perfect for special occasions or family gatherings.',
-    featured_image: '/images/doro.jpg',
-    preparation_time: 50,
-    rating: 4.9,
-    isBookmarked: false,
-    category: {
-      id: 'mexican',
-      name: 'Lunch',
-      color: 'secondary'
-    },
-    user: {
-      username: 'Betselot Abraham',
-      profile_picture: '/images/avatars/sweet-tooth.jpg'
-    }
-  },
-  {
-    id: 2,
-    title: 'Classic Italian Pasta',
-    description: 'A traditional Italian pasta recipe with fresh ingredients and authentic flavors.',
-    featured_image: '/images/categories/italy.jpeg',
-    preparation_time: 30,
-    rating: 4.8,
-    isBookmarked: false,
-    category: {
-      id: 'italians',
-      name: 'Italian',
-      color: 'primary'
-    },
-    user: {
-      username: 'Chef.Aweke',
-      profile_picture: '/images/avatars/Pizza.jpg'
-    }
-  },
-  {
-    id: 3,
-    title: 'Healthy Buddha Bowl',
-    description: 'A nutritious and colorful bowl packed with protein, vegetables, and whole grains.',
-    featured_image: '/images/categories/dessert.jpg',
-    preparation_time: 25,
-    rating: 4.6,
-    isBookmarked: true,
-    category: {
-      id: 'healthy',
-      name: 'Healthy',
-      color: 'success'
-    },
-    user: {
-      username: 'MahiTesfa',
-      profile_picture: '/images/categories/healthy-eats.jpg'
-    }
-  },
-]
-
-// Mock categories (replace with API data)
-const categories = ref([
-  {
-    id: "italian",
-    name: 'Italian',
-    image_url: '/images/categories/italy.jpeg'
-  },
-  {
-    id: "asian",
-    name: 'Asian',
-    image_url: '/images/categories/asian.jpg'
-  },
-  {
-    id: "mexican",
-    name: 'Mexican',
-    image_url: '/images/categories/mexican.jpg'
-  },
-  {
-    id: "Lunch",
-    name: 'Ethipian',
-    image_url: '/images/doro.jpg'
-  },
-  {
-    id: "vegetarian",
-    name: 'Vegetarian',
-    image_url: '/images/categories/vegi.jpg'
-  }
-])
-
-// Methods
-const toggleBookmark = async (recipe: any) => {
-  // TODO: Implement bookmark functionality
-  recipe.isBookmarked = !recipe.isBookmarked
-}
-
-const handleSubscribe = async () => {
-  toastRef?.value?.addToast('info', 'Comming soon')
-
-}
-
-// Page meta
-useHead({
-  title: 'Home',
-  meta: [
-    {
-      name: 'description',
-      content: 'Discover and share amazing recipes from around the world. Join our community of food lovers.'
-    }
-  ]
-})
-</script> 
