@@ -1,3 +1,171 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, watch, inject } from 'vue'
+import { useQuery } from '@vue/apollo-composable'
+import {
+  GET_ALL_RECIPES,
+  GET_ALL_CATEGORIES
+} from '~/utils/graphql-operations'
+import { useRouter, useRoute } from 'vue-router'
+
+interface ToastRef {
+  value?: {
+    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
+  };
+}
+
+interface Recipe {
+  id: string;
+  title: string;
+  description: string;
+  featured_image: string;
+  preparation_time: number;
+  price: number;
+  user: Array<{
+    id: string;
+    full_name: string;
+    username: string;
+  }>;
+  categories: Array<{
+    category_id: string;
+    name: string;
+  }>;
+  rating?: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
+  isPaid: boolean;
+  created_at?: string;
+}
+
+// Router
+const router = useRouter()
+const route = useRoute()
+
+// Pagination state
+const page = ref(1)
+const pageSize = ref(3)
+
+// Filters
+const searchQuery = ref('')
+const sortBy = ref('newest')
+const showFilters = ref(false)
+const selectedCategory = ref('')
+const cookingTime = ref('')
+
+let user = null;
+
+if (typeof window !== "undefined") {
+  user = JSON.parse(localStorage.getItem("user") || "{}");
+}
+
+const toastRef = inject<ToastRef>('toast');
+
+// Apollo query for categories (for filter dropdown)
+const { result: categoriesResult } = useQuery(GET_ALL_CATEGORIES)
+
+// Apollo query for recipes
+const variables = computed(() => {
+  let where: any = {}
+  if (searchQuery.value) {
+    where._or = [
+      { title: { _ilike: `%${searchQuery.value}%` } },
+      { description: { _ilike: `%${searchQuery.value}%` } },
+      { recipe_categories: { category: { name: { _ilike: `%${searchQuery.value}%` } } } }
+    ]
+  }
+  if (selectedCategory.value) {
+    where.recipe_categories = { category: { name: { _eq: selectedCategory.value } } }
+  }
+  if (cookingTime.value) {
+    where.preparation_time = { _lte: parseInt(cookingTime.value) }
+  }
+  let order_by: any[] = [{ created_at: 'desc' }]
+  if (sortBy.value === 'price') {
+    order_by = [{ price: 'desc' }]
+  }
+  return {
+    where,
+    order_by,
+    limit: pageSize.value,
+    offset: (page.value - 1) * pageSize.value
+  }
+})
+
+const { result: recipesResult, loading: gqlLoading, error: gqlError, refetch } = useQuery(GET_ALL_RECIPES, variables)
+
+const recipes = computed(() => {
+  if (!recipesResult.value || !recipesResult.value.recipes) {
+    return []
+  }
+  return recipesResult.value.recipes
+})
+
+const totalCount = computed(() => recipesResult.value?.recipes_aggregate?.aggregate?.count || 0)
+
+// Pagination controls
+const totalPages = computed(() => Math.ceil(totalCount.value / pageSize.value))
+const goToPage = (p: number) => {
+  if (p < 1 || p > totalPages.value) return
+  page.value = p
+}
+
+// Methods
+const toggleLike = async (recipe: Recipe) => {
+  try {
+    if (!user?.id) {
+      toastRef?.value?.addToast('info', 'Please login to like recipes');
+      return;
+    }
+
+    recipe.isLiked = !recipe.isLiked;
+    const res = recipe.isLiked
+      ? await api.recipes.likeRecipe(recipe.id)
+      : await api.recipes.unlikeRecipe(recipe.id);
+
+    toastRef?.value?.addToast('success', res.message || 'Action completed');
+  } catch (err) {
+    console.error('Error toggling like:', err);
+    recipe.isLiked = !recipe.isLiked; // Revert on error
+    toastRef?.value?.addToast('error', 'Failed to toggle like');
+  }
+};
+
+const toggleBookmark = async (recipe: Recipe) => {
+  try {
+    if (!user?.id) {
+      toastRef?.value?.addToast('info', 'Please login to bookmark recipes');
+      return;
+    }
+
+    recipe.isBookmarked = !recipe.isBookmarked;
+    const res = recipe.isBookmarked
+      ? await api.recipes.bookmarkRecipe(recipe.id)
+      : await api.recipes.unbookmarkRecipe(recipe.id);
+
+    toastRef?.value?.addToast('success', res.message || 'Action completed');
+  } catch (err) {
+    console.error('Error toggling bookmark:', err);
+    recipe.isBookmarked = !recipe.isBookmarked; // Revert on error
+    toastRef?.value?.addToast('error', 'Failed to toggle bookmark');
+  }
+};
+
+// Button handler for error retry
+const handleRetry = () => {
+  refetch()
+}
+
+// Page meta
+useHead({
+  title: 'All Recipes',
+  meta: [
+    {
+      name: 'description',
+      content: 'Browse our collection of delicious recipes from around the world.'
+    }
+  ]
+})
+</script>
+
 <template>
   <div class="container mx-auto px-8 py-8">
     <!-- Header -->
@@ -9,15 +177,15 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex justify-center py-12">
+    <div v-if="gqlLoading" class="flex justify-center py-12">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="text-center py-12">
-      <p class="text-red-500">{{ error }}</p>
+    <div v-else-if="gqlError" class="text-center py-12">
+      <p class="text-red-500">{{ gqlError.message }}</p>
       <button 
-        @click="fetchRecipes" 
+        @click="handleRetry" 
         class="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
       >
         Try Again
@@ -78,17 +246,9 @@
                 class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">All Categories</option>
-                <option value="Gluten-Free">Gluten-Free</option>
-                <option value="Vegetarian">Vegetarian</option>
-                <option value="Lunch">Lunch</option>
-                <option value="Breakfast">Breakfast</option>
-                <option value="Dinner">Dinner</option>
-                <option value="Dessert">Dessert</option>
-                <option value="Vegan">Vegan</option>
-                <option value="Snacks">Snacks</option>
-                <option value="Snacks">Snacks</option>
-                
-                <!-- Categories will be populated from backend -->
+                <option v-for="cat in categoriesResult?.categories || []" :key="cat.id" :value="cat.name">
+                  {{ cat.name }}
+                </option>
               </select>
             </div>
 
@@ -113,7 +273,8 @@
       <div class="mx-auto max-w-screen-xl lg:max-w-[1400px]">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div
-            v-for="recipe in filteredRecipes"
+            
+            v-for="recipe in recipes"
             :key="recipe.id"
           >
             <UCard
@@ -129,7 +290,7 @@
                   />
                   <!-- Price Badge -->
                   <div class="absolute top-4 right-4 z-10">
-                    <span v-if="recipe.user?.[0]?.id === user?.id" 
+                    <span v-if="recipe.user?.id === user?.id" 
                           class="bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
                       Your Recipe
                     </span>
@@ -171,12 +332,12 @@
               <div class="space-y-2">
                 <div class="flex items-center gap-2">
                   <UBadge
-                    v-if="recipe.categories?.[0]"
+                    v-if="recipe.recipe_categories[0].category.name"
                     color="primary"
                     variant="subtle"
                     size="sm"
                   >
-                    {{ recipe.categories[0].name }}
+                    {{ recipe.recipe_categories[0].category.name }}
                   </UBadge>
                   <span class="text-sm text-muted-foreground flex items-center">
                     <i class="far fa-clock mr-1"></i>
@@ -195,13 +356,13 @@
                 <div class="flex items-center justify-between pt-2">
                   <div class="flex items-center gap-2">
                     <UAvatar
-                      :src="recipe.user[0].full_name"
-                      :alt="recipe.user[0].full_name"
+                      :src="recipe.user.full_name"
+                      :alt="recipe.user.full_name"
                       size="sm"
                     />
                     <span class="text-sm">
-                      {{ recipe.user[0].full_name }}
-                      <span v-if="user?.fullName === recipe.user[0].full_name" 
+                      {{ recipe.user.full_name }}
+                      <span v-if="user?.fullName === recipe.user.full_name" 
                             class="text-gray-500">(You)</span>
                     </span>
                   </div>
@@ -218,7 +379,7 @@
 
       <!-- Empty State -->
       <div
-        v-if="filteredRecipes.length === 0"
+        v-if="recipes.length === 0"
         class="mt-12 text-center"
       >
         <Icon
@@ -230,223 +391,32 @@
           Try adjusting your filters or search terms.
         </p>
       </div>
+
+      <!-- Pagination Controls -->
+      <div v-if="totalPages > 1" class="flex justify-center mt-8">
+        <button
+          class="px-3 py-1 mx-1 rounded border"
+          :class="{ 'bg-primary text-white': page === 1 }"
+          :disabled="page === 1"
+          @click="goToPage(page - 1)"
+        >Prev</button>
+        <button
+          v-for="p in totalPages"
+          :key="p"
+          class="px-3 py-1 mx-1 rounded border"
+          :class="{ 'bg-primary text-white': page === p }"
+          @click="goToPage(p)"
+        >{{ p }}</button>
+        <button
+          class="px-3 py-1 mx-1 rounded border"
+          :class="{ 'bg-primary text-white': page === totalPages }"
+          :disabled="page === totalPages"
+          @click="goToPage(page + 1)"
+        >Next</button>
+      </div>
     </template>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed, onMounted, watch, inject } from 'vue'
-import { api } from '~/utils/api'
-import { useRouter, useRoute } from 'vue-router'
-
-interface ToastRef {
-  value?: {
-    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
-  };
-}
-
-interface Recipe {
-  id: string;
-  title: string;
-  description: string;
-  featured_image: string;
-  preparation_time: number;
-  price: number;
-  user: Array<{
-    id: string;
-    full_name: string;
-    username: string;
-  }>;
-  categories: Array<{
-    category_id: string;
-    name: string;
-  }>;
-  rating?: number;
-  isLiked: boolean;
-  isBookmarked: boolean;
-  isPaid: boolean;
-  created_at?: string;
-}
-
-// Router
-const router = useRouter()
-const route = useRoute()
-
-// State
-const searchQuery = ref('')
-const sortBy = ref('newest')
-const showFilters = ref(false)
-const selectedCategory = ref('')
-const cookingTime = ref('')
-const recipes = ref<Recipe[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
-
-let user = null;
-
-if (typeof window !== "undefined") {
-  user = JSON.parse(localStorage.getItem("user") || "{}");
-}
-
-const toastRef = inject<ToastRef>('toast');
-
-// Fetch recipes
-const fetchRecipes = async () => {
-  try {
-    loading.value = true
-    error.value = null
-    const data = await api.recipes.getAll()
-    recipes.value = data.map(recipe => {
-      const isPaid = api.chapa.checkPayment(recipe.id)
-      return ({
-      ...recipe,
-      isLiked: false,
-      isBookmarked: false,
-      isPaid
-    })
-    })
-  } catch (err) {
-    console.error('Error fetching recipes:', err)
-    if (err instanceof Error && 'status' in err) {
-      // Handle API errors
-      const apiError = err as { status: number; message: string }
-      if (apiError.status === 401 || apiError.message.includes('Authorization')) {
-        // Unauthorized or missing auth - redirect to login
-      } else {
-        error.value = apiError.message || 'Failed to fetch recipes'
-      }
-    } else if (err instanceof Error) {
-      error.value = err.message
-    } else {
-      error.value = 'Failed to fetch recipes. Please try again later.'
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
-// Computed
-const filteredRecipes = computed(() => {
-  let result = [...recipes.value]
-
-  // Apply search filter
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase().trim()
-    result = result.filter(recipe => 
-      recipe.title.toLowerCase().includes(query) ||
-      recipe.description?.toLowerCase().includes(query) ||
-      recipe.categories?.some(cat => cat.name.toLowerCase().includes(query)) ||
-      false
-    )
-  }
-
-  // Apply category filter
-  if (selectedCategory.value) {
-    result = result.filter(recipe => 
-      recipe.categories?.some(category => 
-        category.name.toLowerCase() === selectedCategory.value.toLowerCase()
-      )
-    )
-  }
-
-  // Apply cooking time filter
-  if (cookingTime.value) {
-    const maxTime = parseInt(cookingTime.value)
-    result = result.filter(recipe => 
-      recipe.preparation_time && recipe.preparation_time <= maxTime
-    )
-  }
-
-  // Apply sorting
-  if (sortBy.value === 'newest') {
-    result.sort((a, b) => {
-      const dateA = new Date(a.created_at || 0)
-      const dateB = new Date(b.created_at || 0)
-      return dateB.getTime() - dateA.getTime()
-    })
-  } else if (sortBy.value === 'price') {
-    result.sort((a, b) => (b.price || 0) - (a.price || 0))
-  }
-
-  return result
-})
-
-// Watch for filter changes to update URL
-watch([searchQuery, selectedCategory, cookingTime, sortBy], () => {
-  // Update URL with current filters
-  router.replace({
-    query: {
-      ...(searchQuery.value && { search: searchQuery.value }),
-      ...(selectedCategory.value && { category: selectedCategory.value }),
-      ...(cookingTime.value && { time: cookingTime.value }),
-      ...(sortBy.value !== 'newest' && { sort: sortBy.value })
-    }
-  })
-})
-
-// Initialize filters from URL on mount
-onMounted(() => {
-  const query = route.query
-  searchQuery.value = query.search?.toString() || ''
-  selectedCategory.value = query.category?.toString() || ''
-  cookingTime.value = query.time?.toString() || ''
-  sortBy.value = query.sort?.toString() || 'newest'
-  
-  fetchRecipes()
-})
-
-// Methods
-const toggleLike = async (recipe: Recipe) => {
-  try {
-    if (!user?.id) {
-      toastRef?.value?.addToast('info', 'Please login to like recipes');
-      return;
-    }
-
-    recipe.isLiked = !recipe.isLiked;
-    const res = recipe.isLiked
-      ? await api.recipes.likeRecipe(recipe.id)
-      : await api.recipes.unlikeRecipe(recipe.id);
-
-    toastRef?.value?.addToast('success', res.message || 'Action completed');
-  } catch (err) {
-    console.error('Error toggling like:', err);
-    recipe.isLiked = !recipe.isLiked; // Revert on error
-    toastRef?.value?.addToast('error', 'Failed to toggle like');
-  }
-};
-
-const toggleBookmark = async (recipe: Recipe) => {
-  try {
-    if (!user?.id) {
-      toastRef?.value?.addToast('info', 'Please login to bookmark recipes');
-      return;
-    }
-
-    recipe.isBookmarked = !recipe.isBookmarked;
-    const res = recipe.isBookmarked
-      ? await api.recipes.bookmarkRecipe(recipe.id)
-      : await api.recipes.unbookmarkRecipe(recipe.id);
-
-    toastRef?.value?.addToast('success', res.message || 'Action completed');
-  } catch (err) {
-    console.error('Error toggling bookmark:', err);
-    recipe.isBookmarked = !recipe.isBookmarked; // Revert on error
-    toastRef?.value?.addToast('error', 'Failed to toggle bookmark');
-  }
-};
-
-// Page meta
-useHead({
-  title: 'All Recipes',
-  meta: [
-    {
-      name: 'description',
-      content: 'Browse our collection of delicious recipes from around the world.'
-    }
-  ]
-})
-</script>
 
 <style scoped>
 .line-clamp-1 {

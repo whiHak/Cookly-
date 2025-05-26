@@ -2,8 +2,8 @@ import { gql } from '@apollo/client';
 
 // Queries
 export const GET_ALL_RECIPES = gql`
-  query GetAllRecipes {
-    recipes(order_by: {created_at: desc}) {
+  query GetAllRecipes($where: recipes_bool_exp, $order_by: [recipes_order_by!], $limit: Int, $offset: Int) {
+    recipes(where: $where, order_by: $order_by, limit: $limit, offset: $offset) {
       id
       title
       description
@@ -44,7 +44,7 @@ export const GET_ALL_RECIPES = gql`
         image_url
         is_featured
       }
-      recipe_likes_aggregate {
+      recipe_likes_aggregate  {
         aggregate {
           count
         }
@@ -62,6 +62,11 @@ export const GET_ALL_RECIPES = gql`
           }
           count
         }
+      }
+    }
+    recipes_aggregate(where: $where) {
+      aggregate {
+        count
       }
     }
   }
