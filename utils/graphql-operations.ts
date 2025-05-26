@@ -73,7 +73,7 @@ export const GET_ALL_RECIPES = gql`
 `;
 
 export const GET_RECIPE_BY_ID = gql`
-  query GetRecipeById($id: uuid!) {
+  query GetRecipeById($id: String!) {
     recipes_by_pk(id: $id) {
       id
       title
@@ -149,7 +149,7 @@ export const GET_RECIPE_BY_ID = gql`
 `;
 
 export const GET_USER_BOOKMARKS = gql`
-  query GetUserBookmarks($user_id: uuid!) {
+  query GetUserBookmarks($user_id: String!) {
     recipe_bookmarks(where: {user_id: {_eq: $user_id}}) {
       recipe {
         id
@@ -212,7 +212,7 @@ export const UPDATE_RECIPE = gql`
 `;
 
 export const DELETE_RECIPE = gql`
-  mutation DeleteRecipe($id: uuid!) {
+  mutation DeleteRecipe($id: String!) {
     delete_recipes_by_pk(id: $id) {
       id
     }
@@ -220,7 +220,7 @@ export const DELETE_RECIPE = gql`
 `;
 
 export const LIKE_RECIPE = gql`
-  mutation LikeRecipe($recipe_id: uuid!, $user_id: uuid!) {
+  mutation LikeRecipe($recipe_id: String!, $user_id: String!) {
     insert_recipe_likes_one(object: {
       recipe_id: $recipe_id,
       user_id: $user_id
@@ -238,7 +238,7 @@ export const LIKE_RECIPE = gql`
 `;
 
 export const UNLIKE_RECIPE = gql`
-  mutation UnlikeRecipe($recipe_id: uuid!, $user_id: uuid!) {
+  mutation UnlikeRecipe($recipe_id: String!, $user_id: String!) {
     delete_recipe_likes(where: {
       recipe_id: {_eq: $recipe_id},
       user_id: {_eq: $user_id}
@@ -258,7 +258,7 @@ export const UNLIKE_RECIPE = gql`
 `;
 
 export const BOOKMARK_RECIPE = gql`
-  mutation BookmarkRecipe($recipe_id: uuid!, $user_id: uuid!) {
+  mutation BookmarkRecipe($recipe_id: String!, $user_id: String!) {
     insert_recipe_bookmarks_one(object: {
       recipe_id: $recipe_id,
       user_id: $user_id
@@ -269,7 +269,7 @@ export const BOOKMARK_RECIPE = gql`
 `;
 
 export const UNBOOKMARK_RECIPE = gql`
-  mutation UnbookmarkRecipe($recipe_id: uuid!, $user_id: uuid!) {
+  mutation UnbookmarkRecipe($recipe_id: String!, $user_id: String!) {
     delete_recipe_bookmarks(where: {
       recipe_id: {_eq: $recipe_id},
       user_id: {_eq: $user_id}
@@ -280,14 +280,14 @@ export const UNBOOKMARK_RECIPE = gql`
 `;
 
 export const RATE_RECIPE = gql`
-  mutation RateRecipe($recipe_id: uuid!, $user_id: uuid!, $rating: Int!) {
+  mutation RateRecipe($recipe_id: String!, $user_id: String!, $rating: Int!) {
     insert_recipe_ratings_one(object: {
       recipe_id: $recipe_id,
       user_id: $user_id,
       rating: $rating
     }, on_conflict: {
       constraint: recipe_ratings_pkey,
-      update_columns: [rating]
+      # update_columns: [rating]
     }) {
       id
       rating
@@ -370,7 +370,7 @@ export const ADD_RECIPE_IMAGE = gql`
 `;
 
 export const COMMENT_ON_RECIPE = gql`
-  mutation CommentOnRecipe($recipe_id: uuid!, $user_id: uuid!, $content: String!) {
+  mutation CommentOnRecipe($recipe_id: String!, $user_id: String!, $content: String!) {
     insert_recipe_comments_one(object: {
       recipe_id: $recipe_id,
       user_id: $user_id,
@@ -389,7 +389,7 @@ export const COMMENT_ON_RECIPE = gql`
 `;
 
 export const GET_RECIPE_COMMENTS = gql`
-  query GetRecipeComments($recipe_id: uuid!) {
+  query GetRecipeComments($recipe_id: String!) {
     recipe_comments(
       where: {recipe_id: {_eq: $recipe_id}}
       order_by: {created_at: desc}
@@ -407,7 +407,7 @@ export const GET_RECIPE_COMMENTS = gql`
 `;
 
 export const UPSERT_INGREDIENT = gql`
-  mutation UpsertIngredient($id: uuid!, $name: String!) {
+  mutation UpsertIngredient($id: String!, $name: String!) {
     insert_ingredients_one(
       object: { id: $id, name: $name },
       on_conflict: { constraint: ingredients_pkey, update_columns: [] }
