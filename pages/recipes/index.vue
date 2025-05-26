@@ -308,7 +308,7 @@ useHead({
                     </span>
                   </div>
                   <!-- Like and Bookmark Buttons -->
-                  <div class="absolute  bottom-4 right-4 flex space-x-2 z-10">
+                  <!-- <div class="absolute  bottom-4 right-4 flex space-x-2 z-10">
                     <button
                       @click.stop="toggleLike(recipe)"
                       class="rounded-full bg-white p-2.5 w-10 h-12 self-center shadow-md hover:bg-gray-100 transition-colors"
@@ -323,7 +323,7 @@ useHead({
                     >
                       <i :class="recipe.isBookmarked ? 'fas fa-bookmark' : 'far fa-bookmark'"></i>
                     </button>
-                  </div>
+                  </div> -->
                   <!-- Dark Gradient Overlay -->
                   <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                 </div>
@@ -368,7 +368,12 @@ useHead({
                   </div>
                   <div class="flex items-center gap-1">
                     <Icon name="lucide:star" class="w-4 h-4 text-yellow-400" />
-                    <span class="text-sm">{{ recipe?.rating || '0.0' }}</span>
+                    <span class="text-sm">{{ recipe.recipe_ratings_aggregate?.aggregate?.avg?.rating?.toFixed(1) || '0.0' }}</span>
+                    <span class="text-xs text-muted-foreground ml-1">({{ recipe.recipe_ratings_aggregate?.aggregate?.count || 0 }})</span>
+                  </div>
+                  <div class="flex items-center gap-1 ml-2">
+                    <i class="fas fa-heart text-red-500"></i>
+                    <span class="text-sm">{{ recipe.recipe_likes_aggregate?.aggregate?.count || 0 }}</span>
                   </div>
                 </div>
               </div>
