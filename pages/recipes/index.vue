@@ -57,8 +57,6 @@ if (typeof window !== "undefined") {
   user = JSON.parse(localStorage.getItem("user") || "{}");
 }
 
-const toastRef = inject<ToastRef>('toast');
-
 // Apollo query for categories (for filter dropdown)
 const { result: categoriesResult } = useQuery(GET_ALL_CATEGORIES)
 
@@ -107,48 +105,6 @@ const goToPage = (p: number) => {
   if (p < 1 || p > totalPages.value) return
   page.value = p
 }
-
-// Methods
-const toggleLike = async (recipe: Recipe) => {
-  try {
-    if (!user?.id) {
-      toastRef?.value?.addToast('info', 'Please login to like recipes');
-      return;
-    }
-
-    recipe.isLiked = !recipe.isLiked;
-    const res = recipe.isLiked
-      ? await api.recipes.likeRecipe(recipe.id)
-      : await api.recipes.unlikeRecipe(recipe.id);
-
-    toastRef?.value?.addToast('success', res.message || 'Action completed');
-  } catch (err) {
-    console.error('Error toggling like:', err);
-    recipe.isLiked = !recipe.isLiked; // Revert on error
-    toastRef?.value?.addToast('error', 'Failed to toggle like');
-  }
-};
-
-const toggleBookmark = async (recipe: Recipe) => {
-  try {
-    if (!user?.id) {
-      toastRef?.value?.addToast('info', 'Please login to bookmark recipes');
-      return;
-    }
-
-    recipe.isBookmarked = !recipe.isBookmarked;
-    const res = recipe.isBookmarked
-      ? await api.recipes.bookmarkRecipe(recipe.id)
-      : await api.recipes.unbookmarkRecipe(recipe.id);
-
-    toastRef?.value?.addToast('success', res.message || 'Action completed');
-  } catch (err) {
-    console.error('Error toggling bookmark:', err);
-    recipe.isBookmarked = !recipe.isBookmarked; // Revert on error
-    toastRef?.value?.addToast('error', 'Failed to toggle bookmark');
-  }
-};
-
 // Button handler for error retry
 const handleRetry = () => {
   refetch()
@@ -178,7 +134,9 @@ useHead({
 
     <!-- Loading State -->
     <div v-if="gqlLoading" class="flex justify-center py-12">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary">
+        <h1>Loading...</h1>
+      </div>
     </div>
 
     <!-- Error State -->
@@ -356,8 +314,8 @@ useHead({
                 <div class="flex items-center justify-between pt-2">
                   <div class="flex items-center gap-2">
                     <UAvatar
-                      :src="recipe.user.full_name"
-                      :alt="recipe.user.full_name"
+                      :src="recipe.user?.full_name"
+                      :alt="recipe.user?.full_name"
                       size="sm"
                     />
                     <span class="text-sm">

@@ -1,11 +1,5 @@
 <script setup lang="ts">
 import { ref } from "vue";
-// import { useMotion } from '@vueuse/motion'
-
-// State
-const email = ref("");
-const isSubscribing = ref(false);
-
 interface ToastRef {
   value: {
     addToast: (
@@ -108,12 +102,7 @@ const categories = ref([
 
 // Methods
 const toggleBookmark = async (recipe: any) => {
-  // TODO: Implement bookmark functionality
-  recipe.isBookmarked = !recipe.isBookmarked;
-};
-
-const handleSubscribe = async () => {
-  toastRef?.value?.addToast("info", "Comming soon");
+  //..
 };
 
 // Page meta
@@ -308,44 +297,5 @@ useHead({
         </div>
       </div>
     </section>
-
-    <!-- Newsletter -->
-    <section class="py-16">
-      <div class="container">
-        <div class="bg-primary/5 rounded-2xl p-8 md:p-12 text-center">
-          <div
-            v-motion
-            :initial="{ opacity: 0, y: 20 }"
-            :enter="{ opacity: 1, y: 0 }"
-          >
-            <h2 class="text-3xl font-bold mb-4">Stay Updated</h2>
-            <p class="text-muted-foreground mb-6 max-w-2xl mx-auto">
-              Subscribe to our newsletter to receive the latest recipes, cooking
-              tips, and food inspiration.
-            </p>
-            <form
-              @submit.prevent="handleSubscribe"
-              class="flex flex-col sm:flex-row gap-4 max-w-md mx-auto"
-            >
-              <UInput
-                v-model="email"
-                type="email"
-                placeholder="Enter your email"
-                size="lg"
-                class="w-full"
-              />
-              <UButton
-                type="submit"
-                color="primary"
-                size="lg"
-                :loading="isSubscribing"
-              >
-                Subscribe
-              </UButton>
-            </form>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
+</div>
 </template>

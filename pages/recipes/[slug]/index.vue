@@ -31,14 +31,15 @@ const route = useRoute();
 const router = useRouter();
 const toastRef = inject<ToastRef>("toast");
 
-let user = null;
+let user: any = null;
 if (typeof window !== "undefined") {
   user = JSON.parse(localStorage.getItem("user") || "{}");
 }
 
 const chapaPublicKey = process.env.NUXT_PUBLIC_CHAPA_PUBLIC_KEY;
 
-const recipeId = computed(() => route.params.slug);
+// Get recipeId from route
+const recipeId = route.params.slug;
 
 // Recipe Query
 const {
@@ -47,7 +48,7 @@ const {
   error,
   refetch,
 } = useQuery(GET_RECIPE_BY_ID, { id: recipeId });
-const recipe = computed(() => recipeResult.value?.recipes_by_pk || null);
+let recipe: any = null;
 
 // Comments Query
 const { result: commentsResult, refetch: refetchComments } = useQuery(
@@ -77,34 +78,25 @@ const { mutate: unbookmarkRecipeMutation } = useMutation(UNBOOKMARK_RECIPE);
 const { mutate: rateRecipeMutation } = useMutation(RATE_RECIPE);
 const { mutate: deleteRecipeMutation } = useMutation(DELETE_RECIPE);
 
-// State
-const sharePlatforms = [
-  { name: "Facebook", icon: "lucide:facebook" },
-  { name: "Twitter", icon: "lucide:twitter" },
-  { name: "Pinterest", icon: "lucide:youtube" },
-  { name: "WhatsApp", icon: "lucide:tiktok" },
-  { name: "Email", icon: "lucide:gmail" },
-];
-
 // Rating, Like, and Bookmark State
 const userRating = ref(0);
-const isLiked = computed(() =>
-  recipe.value?.recipe_likes?.some((like: any) => like.user_id === user?.id)
-);
-const isBookmarked = computed(() =>
-  recipe.value?.recipe_bookmarks?.some((bm: any) => bm.user_id === user?.id)
-);
+const localLiked = ref(false);
+const localBookmarked = ref(false);
+
+const isLiked = computed(() => localLiked.value);
+const isBookmarked = computed(() => localBookmarked.value);
+
 const likeCount = computed(
-  () => recipe.value?.recipe_likes_aggregate?.aggregate?.count || 0
+  () => recipe?.recipe_likes_aggregate?.aggregate?.count || 0
 );
 const avgRating = computed(
   () =>
-    recipe.value?.recipe_ratings_aggregate?.aggregate?.avg?.rating?.toFixed(
+    recipe?.recipe_ratings_aggregate?.aggregate?.avg?.rating?.toFixed(
       1
     ) || "0.0"
 );
 const ratingCount = computed(
-  () => recipe.value?.recipe_ratings_aggregate?.aggregate?.count || 0
+  () => recipe?.recipe_ratings_aggregate?.aggregate?.count || 0
 );
 
 // State for comments
@@ -116,6 +108,9 @@ const isPaid = ref(false);
 // State for delete confirmation
 const showDeleteConfirm = ref(false);
 
+// State for readiness
+const isReady = ref(false);
+
 // Methods
 const rateRecipe = async (rating: number) => {
   try {
@@ -125,7 +120,7 @@ const rateRecipe = async (rating: number) => {
     }
     userRating.value = rating;
     await rateRecipeMutation({
-      recipe_id: recipeId.value,
+      recipe_id: recipeId,
       user_id: user.id,
       rating,
     });
@@ -135,31 +130,31 @@ const rateRecipe = async (rating: number) => {
   }
 };
 
-const shareRecipe = (platform: { name: string; icon: string }) => {
-  console.log(`Sharing recipe on ${platform.name}`);
-  // Add logic to share the recipe on the selected platform
-};
-
 const toggleLike = async () => {
   try {
     if (!user?.id) {
       toastRef?.value?.addToast("info", "Please login to like recipes");
       return;
     }
-    if (isLiked.value) {
-      await unlikeRecipeMutation({
-        recipe_id: recipeId.value,
+    localLiked.value = !localLiked.value; // Optimistic update
+    if (localLiked.value) {
+      await likeRecipeMutation({
+        recipe_id: recipeId,
         user_id: user?.id,
       });
     } else {
-      await likeRecipeMutation({
-        recipe_id: recipeId.value,
+      await unlikeRecipeMutation({
+        recipe_id: recipeId,
         user_id: user?.id,
       });
     }
-    refetch();
+    await fetchRecipe();
+    // Sync with backend after fetch
+    localLiked.value = recipe?.recipe_likes?.some((like: any) => like.user_id === user?.id) || false;
   } catch (err) {
     toastRef?.value?.addToast("error", "Failed to toggle like");
+    // Revert optimistic update on error
+    localLiked.value = recipe?.recipe_likes?.some((like: any) => like.user_id === user?.id) || false;
   }
 };
 
@@ -169,20 +164,25 @@ const toggleBookmark = async () => {
       toastRef?.value?.addToast("info", "Please login to bookmark recipes");
       return;
     }
-    if (isBookmarked.value) {
-      await unbookmarkRecipeMutation({
-        recipe_id: recipeId.value,
+    localBookmarked.value = !localBookmarked.value; // Optimistic update
+    if (localBookmarked.value) {
+      await bookmarkRecipeMutation({
+        recipe_id: recipeId,
         user_id: user?.id,
       });
     } else {
-      await bookmarkRecipeMutation({
-        recipe_id: recipeId.value,
+      await unbookmarkRecipeMutation({
+        recipe_id: recipeId,
         user_id: user?.id,
       });
     }
-    refetch();
+    await fetchRecipe();
+    // Sync with backend after fetch
+    localBookmarked.value = recipe?.recipe_bookmarks?.some((bm: any) => bm.user_id === user?.id) || false;
   } catch (err) {
     toastRef?.value?.addToast("error", "Failed to toggle bookmark");
+    // Revert optimistic update on error
+    localBookmarked.value = recipe?.recipe_bookmarks?.some((bm: any) => bm.user_id === user?.id) || false;
   }
 };
 
@@ -194,7 +194,7 @@ const postComment = async () => {
   }
   try {
     await commentOnRecipe({
-      recipe_id: recipeId.value,
+      recipe_id: recipeId,
       user_id: user?.id,
       content: newComment.value,
     });
@@ -215,21 +215,44 @@ const fetchComments = async () => {
   }
 };
 
-let tx_ref: string | null = null;
+// tx_ref as a function
+function getTxRef() {
+  const userId = user?.id || "guest";
+  if (!recipe?.id) return null;
+  return `tx-${recipe.id}-${userId}`.toString();
+}
+
+// returnUrl as a function
+function getReturnUrl() {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+// showPaymentOverlay as a function
+function showPaymentOverlay() {
+  if (!recipe?.price || recipe.price === 0) return false;
+  if (isPaid.value) return false;
+  if (user?.id && recipe.user?.id === user.id) {
+    return false;
+  }
+  return true;
+}
+
+// isCreator as a function
+function isCreator() {
+  return user?.id && recipe?.user?.id === user.id;
+}
+
 // Fetch Recipe
 const fetchRecipe = async () => {
   try {
     loading.value = true;
-    refetch();
-
-    // Generate tx_ref with more details
-    const userId = user?.id || "guest";
-    tx_ref = `TX-${recipe.value.id}-${userId}`.toString();
-
-    // Check payment status
-    if (recipe.value.price > 0) {
+    await refetch();
+    recipe = recipeResult.value?.recipes_by_pk || null;
+    // Wait for recipe to be available
+    if (recipe && recipe.price > 0) {
       await checkPament();
-    } else {
+    } else if (recipe) {
       isPaid.value = true;
     }
   } catch (err) {
@@ -237,13 +260,9 @@ const fetchRecipe = async () => {
     // error.value = true;
   } finally {
     loading.value = false;
+    isReady.value = true;
   }
 };
-
-const returnUrl = computed(() => {
-  if (typeof window === "undefined") return "";
-  return `${window.location.origin}${window.location.pathname}`;
-});
 
 // Add function to handle purchase click
 const handlePurchaseClick = (e: Event) => {
@@ -269,10 +288,12 @@ const handlePurchaseClick = (e: Event) => {
 // Update the payment verification
 const checkPament = async () => {
   try {
-    if (!tx_ref) return;
+    const txRef = getTxRef();
+    if (!txRef) return;
 
+    // Call backend endpoint instead of Chapa directly
     const verificationResult = await fetch(
-      `${API_BASE_URL}/payments/verify/${tx_ref}`,
+      `${API_BASE_URL}/payment/verify?tx_ref=chewatatest-6669`,
       {
         method: "GET",
         headers: {
@@ -282,33 +303,18 @@ const checkPament = async () => {
     );
 
     const verification = await verificationResult.json();
-    if (verification.status === "success") {
+    console.log("Payment verification result (backend):", verification);
+    if (verification.status === "success" || verification.success) {
       isPaid.value = true;
-      // Save the purchase details
-      // api.chapa.savePurchase(recipe.value.id);
+      // Save the purchase details if needed
     } else {
       isPaid.value = false;
     }
   } catch (error) {
-    console.error("Error checking payment:", error);
+    console.error("Error checking payment (backend):", error);
     isPaid.value = false;
   }
 };
-
-// Update the payment overlay to show different message for recipe creator
-const showPaymentOverlay = computed(() => {
-  if (!recipe.value?.price || recipe.value.price === 0) return false;
-  if (isPaid.value) return false;
-  if (user?.id && recipe.value.user?.id === user.id) {
-    return false;
-  }
-  return true;
-});
-
-// Add a banner to show when user is the creator
-const isCreator = computed(() => {
-  return user?.id && recipe.value?.user?.id === user.id;
-});
 
 // Add function to navigate to edit page
 const navigateToEdit = () => {
@@ -318,8 +324,8 @@ const navigateToEdit = () => {
 // Add function to handle delete
 const handleDelete = async () => {
   try {
-    if (!recipe.value?.id) return;
-    await deleteRecipeMutation({ id: recipe.value.id });
+    if (!recipe?.id) return;
+    await deleteRecipeMutation({ id: recipe.id });
     toastRef?.value?.addToast("success", "Recipe deleted successfully");
     router.push("/recipes");
   } catch (err) {
@@ -334,13 +340,16 @@ const handleDelete = async () => {
 onMounted(async () => {
   await fetchRecipe(); // Wait for recipe to load first
   await fetchComments();
+  // Set initial local states
+  localLiked.value = recipe?.recipe_likes?.some((like: any) => like.user_id === user?.id) || false;
+  localBookmarked.value = recipe?.recipe_bookmarks?.some((bm: any) => bm.user_id === user?.id) || false;
 });
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div v-if="isReady" class="container mx-auto px-4 py-8">
     <!-- Loading State -->
-    <div v-if="loading" class="flex justify-center text-center">
+    <div v-if="loading && !recipe" class="flex justify-center text-center">
       <div
         class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"
       ></div>
@@ -354,7 +363,7 @@ onMounted(async () => {
     </div>
 
     <!-- Recipe Content -->
-    <div v-if="!loading && !error" class="relative">
+    <div v-if="recipe && !error" class="relative">
       <!-- Recipe Header -->
       <div class="relative mb-8">
         <div class="aspect-[16/9] overflow-hidden rounded-lg">
@@ -384,7 +393,7 @@ onMounted(async () => {
             <div
               class="recipe-content"
               :class="{
-                'blur-content': !isPaid && recipe.price > 0 && !isCreator,
+                'blur-content': !isPaid && recipe.price > 0 && !isCreator(),
               }"
             >
               <ul class="mt-4 space-y-4">
@@ -416,7 +425,7 @@ onMounted(async () => {
             <div
               class="recipe-content"
               :class="{
-                'blur-content': !isPaid && recipe.price > 0 && !isCreator,
+                'blur-content': !isPaid && recipe.price > 0 && !isCreator(),
               }"
             >
               <ol class="mt-4 space-y-6">
@@ -525,7 +534,7 @@ onMounted(async () => {
                   }}</span>
                 </div>
               </div>
-              <div v-if="showPaymentOverlay" class="mt-4">
+              <div v-if="showPaymentOverlay()" class="mt-4">
                 <form
                   method="POST"
                   action="https://api.chapa.co/v1/hosted/pay"
@@ -534,9 +543,9 @@ onMounted(async () => {
                   <input
                     type="hidden"
                     name="public_key"
-                    value=""
+                    value="CHAPUBK_TEST-bEr7C7ifcgqhVpmYURbJC1YhTydaVrHc"
                   />
-                  <input type="hidden" name="tx_ref" :value="tx_ref" />
+                  <input type="hidden" name="tx_ref" :value="getTxRef()" />
                   <input type="hidden" name="amount" :value="recipe.price" />
                   <input type="hidden" name="currency" value="ETB" />
                   <input
@@ -565,8 +574,8 @@ onMounted(async () => {
                     name="logo"
                     value="https://chapa.link/asset/images/chapa_swirl.svg"
                   />
-                  <input type="hidden" name="callback_url" :value="returnUrl" />
-                  <input type="hidden" name="return_url" :value="returnUrl" />
+                  <input type="hidden" name="callback_url" :value="getReturnUrl()" />
+                  <input type="hidden" name="return_url" :value="getReturnUrl()" />
                   <button
                     class="w-full rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark shadow-lg"
                   >
@@ -591,22 +600,6 @@ onMounted(async () => {
                 >
                   {{ category.category.name }}
                 </NuxtLink>
-              </div>
-            </div>
-
-            <!-- Share Recipe -->
-            <div class="rounded-lg border p-4">
-              <h3 class="font-semibold">Share Recipe</h3>
-              <div class="mt-4 flex gap-2">
-                <button
-                  v-for="platform in sharePlatforms"
-                  :key="platform.name"
-                  type="button"
-                  class="flex items-center justify-center rounded-md border bg-background p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  @click="shareRecipe(platform)"
-                >
-                  <Icon :name="platform.icon" class="h-5 w-5" />
-                </button>
               </div>
             </div>
 
@@ -658,7 +651,7 @@ onMounted(async () => {
             </div>
 
             <!-- Creator Actions -->
-            <div v-if="isCreator" class="space-y-4">
+            <div v-if="isCreator()" class="space-y-4">
               <!-- Creator Banner -->
               <div
                 class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4"
@@ -692,7 +685,7 @@ onMounted(async () => {
       </div>
 
       <!-- Payment Required Overlay -->
-      <div v-if="showPaymentOverlay" class="payment-required-overlay">
+      <div v-if="showPaymentOverlay()" class="payment-required-overlay">
         <div class="bg-white p-6 rounded-lg shadow-lg text-center">
           <h3 class="text-xl font-semibold mb-4">Premium Recipe</h3>
           <p class="mb-4">Purchase this recipe to view the full content</p>
@@ -705,9 +698,9 @@ onMounted(async () => {
             <input
               type="hidden"
               name="public_key"
-              value=""
+              value="CHAPUBK_TEST-bEr7C7ifcgqhVpmYURbJC1YhTydaVrHc"
             />
-            <input type="hidden" name="tx_ref" :value="tx_ref" />
+            <input type="hidden" name="tx_ref" :value="getTxRef()" />
             <input type="hidden" name="amount" :value="recipe.price" />
             <input type="hidden" name="currency" value="ETB" />
             <input
@@ -736,8 +729,8 @@ onMounted(async () => {
               name="logo"
               value="https://chapa.link/asset/images/chapa_swirl.svg"
             />
-            <input type="hidden" name="callback_url" :value="returnUrl" />
-            <input type="hidden" name="return_url" :value="returnUrl" />
+            <input type="hidden" name="callback_url" :value="getReturnUrl()" />
+            <input type="hidden" name="return_url" :value="getReturnUrl()" />
             <button
               class="w-full rounded bg-primary px-4 py-2 text-white hover:bg-primary-dark shadow-lg"
             >
@@ -779,7 +772,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.recipe-content {
+  .recipe-content {
   transition: all 0.3s ease;
 }
 

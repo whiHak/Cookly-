@@ -1,3 +1,455 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, reactive, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useFormValidation, rules } from '~/composables/useFormValidation'
+import { useUnsavedChanges } from '~/composables/useUnsavedChanges'
+import { optimizeImage } from '~/utils/imageOptimizer'
+import type { Recipe, Step, Ingredient, UpdateRecipeDto, CreateRecipeDto } from '~/types/recipe'
+import { api } from '~/utils/api'
+import { v4 as uuidv4 } from 'uuid';
+import { useMutation, useQuery } from '@vue/apollo-composable'
+import {
+  UPDATE_RECIPE,
+  UPDATE_RECIPE_IMAGE,
+  UPDATE_RECIPE_CATEGORY,
+  UPDATE_RECIPE_INGREDIENT,
+  UPDATE_RECIPE_STEP,
+  GET_RECIPE_BY_ID,
+  GET_ALL_INGREDIENTS,
+  GET_ALL_CATEGORIES
+} from '~/utils/graphql-operations'
+
+
+const route = useRoute()
+const router = useRouter()
+const recipeId = computed(() => route.params.slug as string)
+const { result: recipeResult, loading: recipeLoading, error: recipeError, refetch: refetchRecipe } = useQuery(GET_RECIPE_BY_ID, { id: recipeId })
+interface ToastRef {
+  value: {
+    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
+  } | null
+}
+const toastRef = inject<ToastRef>('toast')
+const newTag = ref('')
+
+const currentStep = ref(0)
+const isLoading = computed(() => recipeLoading.value)
+const formRecipe = ref<Recipe>({
+  id: '',
+  title: '',
+  description: '',
+  servings: 1,
+  preparation_time: 0,
+  featured_image: '',
+  price: 0,
+  ingredients: [],
+  isFree: false,
+  steps: [],
+  categories: [],
+  difficulty: 'easy',
+  notes: '',
+  tags: [],
+  images: []
+})
+const initialForm = ref<Recipe | null>(null)
+
+const steps = [
+  'Basic Information',
+  'Details',
+  'Categories & Tags',
+  'Ingredients',
+  'Instructions',
+  'Notes'
+]
+
+// Mock data for categories
+interface Category {
+  id: string
+  name: string
+}
+
+const categories: Category[] = [
+  { id: '1', name: 'Breakfast' },
+  { id: '2', name: 'Lunch' },
+  { id: '3', name: 'Dinner' },
+  { id: '4', name: 'Dessert' },
+  { id: '5', name: 'Snacks' },
+  { id: '6', name: 'Vegetarian' },
+  { id: '7', name: 'Vegan' },
+  { id: '8', name: 'Gluten-Free' },
+]
+
+// Validation rules
+const validationRules = {
+  title: [rules.required('Title is required')],
+  description: [rules.required('Description is required')],
+  featured_image: [rules.required('Featured image is required')],
+  preparation_time: [rules.required('Preparation time is required'), rules.min(0)],
+  servings: [rules.required('Number of servings is required'), rules.min(1)],
+  difficulty: [rules.required('Difficulty level is required')],
+  categories: [{
+    validate: (value: typeof formRecipe.value.categories) => value && value.length > 0,
+    message: 'Please select at least one category'
+  }],
+  ingredients: [{
+    validate: (value: typeof formRecipe.value.ingredients) => {
+      if (!value || value.length === 0) return false
+      return value.every(ingredient => 
+        ingredient.quantity?.toString().trim() !== '' && 
+        ingredient.name?.trim() !== ''
+      )
+    },
+    message: 'All ingredients must have an amount and name'
+  }],
+  steps: [{
+    validate: (value: typeof formRecipe.value.steps) => {
+      if (!value || value.length === 0) return false
+      return value.every(step => 
+        step.description?.trim() !== ''
+      )
+    },
+    message: 'All instructions must have a description'
+  }]
+}
+
+// Initialize validation with empty recipe
+const { errors, validateField, validateForm } = useFormValidation(formRecipe, validationRules)
+
+const { mutate: updateRecipeMutation } = useMutation(UPDATE_RECIPE)
+const { mutate: updateRecipeImageMutation } = useMutation(UPDATE_RECIPE_IMAGE)
+const { mutate: updateRecipeCategoryMutation } = useMutation(UPDATE_RECIPE_CATEGORY)
+const { mutate: updateRecipeIngredientMutation } = useMutation(UPDATE_RECIPE_INGREDIENT)
+const { mutate: updateRecipeStepMutation } = useMutation(UPDATE_RECIPE_STEP)
+const { result: allIngredientsResult } = useQuery(GET_ALL_INGREDIENTS)
+const { result: allCategoriesResult } = useQuery(GET_ALL_CATEGORIES)
+
+watch(recipeResult, (val) => {
+  if (val && val.recipes_by_pk) {
+    const recipeData = val.recipes_by_pk
+    formRecipe.value = {
+      id: recipeData.id,
+      title: recipeData.title,
+      description: recipeData.description || '',
+      servings: recipeData.servings || 1,
+      preparation_time: recipeData.preparation_time || 0,
+      featured_image: recipeData.featured_image,
+      price: recipeData.price || 0,
+      ingredients: (recipeData.recipe_ingredients || []).map((i: any) => ({
+        id: i.id,
+        ingredient_id: i.ingredient?.id || '',
+        quantity: i.quantity,
+        unit: i.unit || null,
+        name: i.ingredient?.name || ''
+      })),
+      steps: (recipeData.recipe_steps || []).map((s: any) => ({
+        id: s.id,
+        step_number: s.step_number,
+        description: s.description,
+        image_url: s.image_url || undefined
+      })),
+      notes: '',
+      categories: (recipeData.recipe_categories || []).map((c: any) => ({
+        id: c.id,
+        category_id: c.category?.id,
+        name: c.category?.name
+      })),
+      images: (recipeData.recipe_images || []).map((img: any) => ({
+        id: img.id,
+        image_url: img.image_url,
+        is_featured: img.is_featured
+      })),
+      difficulty: recipeData.difficulty || 'easy',
+      tags: []
+    }
+    initialForm.value = { ...formRecipe.value }
+  }
+})
+
+// Helper function to generate unique IDs
+
+const generateId = () => {
+  return uuidv4(); // Generates a random UUID (Version 4)
+};
+
+// Handle form submission
+const handleSubmit = async () => {
+  const isValid = await validateForm();
+  if (!isValid) return;
+
+  try {
+    if (formRecipe.value.isFree) {
+      formRecipe.value.price = 0;
+    }
+    // Main recipe data (without steps, ingredients, categories, images)
+    const updateData: any = {
+      title: formRecipe.value.title,
+      description: formRecipe.value.description,
+      preparation_time: formRecipe.value.preparation_time,
+      featured_image: formRecipe.value.featured_image,
+      difficulty: formRecipe.value.difficulty,
+      servings: formRecipe.value.servings,
+      price: formRecipe.value.price,
+    };
+    // Update the recipe
+    await updateRecipeMutation({ id: formRecipe.value.id, input: updateData })
+    // Update categories (only existing ones)
+    for (const cat of formRecipe.value.categories) {
+      if (cat.id) {
+        try {
+          await updateRecipeCategoryMutation({
+            id: cat.id,
+            input: { category_id: cat.category_id }
+          });
+        } catch (e) {
+          toastRef?.value?.addToast('error', `Failed to update category: ${cat.name}`)
+        }
+      }
+    }
+    // Update images (only existing ones)
+    if (formRecipe.value.images) {
+      for (const img of formRecipe.value.images) {
+        if (img.id) {
+          try {
+            await updateRecipeImageMutation({
+              id: img.id,
+              input: {
+                image_url: img.image_url,
+                is_featured: img.is_featured
+              }
+            });
+          } catch (e) {
+            toastRef?.value?.addToast('error', 'Failed to update image')
+          }
+        }
+      }
+    }
+    // Update ingredients (only existing ones)
+    for (const ingredient of formRecipe.value.ingredients) {
+      if (ingredient.id) {
+        try {
+          await updateRecipeIngredientMutation({
+            id: ingredient.id,
+            input: {
+              quantity: ingredient.quantity,
+              unit: ingredient.unit || null,
+              // ingredient_id: ingredient.ingredient_id || ingredient.id
+            }
+          });
+        } catch (e) {
+          toastRef?.value?.addToast('error', `Failed to update ingredient: ${ingredient.name}`)
+        }
+      }
+    }
+    // Update steps (only existing ones)
+    for (const [index, step] of formRecipe.value.steps.entries()) {
+      if (step.id) {
+        try {
+          await updateRecipeStepMutation({
+            id: step.id,
+            input: {
+              step_number: index + 1,
+              description: step.description,
+              image_url: step.image_url || undefined
+            }
+          });
+        } catch (e) {
+          toastRef?.value?.addToast('error', `Failed to update step ${index + 1}`)
+        }
+      }
+    }
+    toastRef?.value?.addToast('success', 'Recipe updated successfully')
+    router.push(`/recipes/${formRecipe.value.id}`)
+  } catch (error) {
+    console.error('Error updating recipe:', error)
+    toastRef?.value?.addToast('error', 'Failed to update recipe')
+  }
+}
+
+// Navigation between steps
+const getCurrentStepFields = () => {
+  switch (currentStep.value) {
+    case 0:
+      return ['title', 'description', 'featured_image'] as const
+    case 1:
+      return ['preparation_time', 'servings', 'difficulty', 'categories'] as const
+    case 2:
+      return ['ingredients'] as const
+    case 3:
+      return ['steps'] as const
+    case 4:
+      return ['notes', 'price'] as const
+    default:
+      return [] as const
+  }
+}
+
+async function goToNextStep() {
+  const currentFields = getCurrentStepFields()
+  const isValid = currentFields.every(field => {
+    const valid = validateField(field)
+    console.log('Current Fields:', valid)
+    return valid
+  })
+
+
+  if (!isValid) {
+    toastRef?.value?.addToast('error','Please fix the validation errors before proceeding')
+    return
+  }else {
+    if (currentStep.value < steps.length - 1) {
+      currentStep.value++
+    }
+  }
+}
+
+function goToPreviousStep() {
+  if (currentStep.value > 0) {
+    currentStep.value--
+  }
+}
+
+// Page meta
+useHead({
+  title: 'Edit Recipe',
+  meta: [
+    {
+      name: 'description',
+      content: 'Update your recipe details and instructions.',
+    },
+  ],
+})
+
+// Image handling
+const handleImageUpload = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files[0]) {
+    // Check if user is logged in
+    const token = localStorage.getItem('token')
+    if (!token) {
+      toastRef?.value?.addToast('error', 'Please log in to upload images')
+      router.push('/auth/login')
+      return
+    }
+
+    try {
+      const base64Image = await optimizeImage(input.files[0], {
+        maxWidth: 1920,
+        maxHeight: 1080,
+        quality: 0.8,
+        format: 'webp',
+        outputType: 'base64'
+      }) as string
+
+      const { url } = await api.recipes.uploadImage(base64Image)
+      formRecipe.value.featured_image = base64Image
+      validateField('featured_image')
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toastRef?.value?.addToast('error', 'Failed to upload image')
+    }
+  }
+}
+
+// Category handling
+const toggleCategory = (category: Category) => {
+  const index = formRecipe.value.categories.findIndex(c => c.category_id === category.id)
+  if (index === -1) {
+    formRecipe.value.categories.push({
+      category_id: category.id,
+      name: category.name
+    })
+  } else {
+    formRecipe.value.categories.splice(index, 1)
+  }
+}
+
+// Tag handling
+const addTag = () => {
+  if (!formRecipe.value.tags) {
+    formRecipe.value.tags = []
+  }
+  if (newTag.value.trim() && !formRecipe.value.tags.includes(newTag.value.trim())) {
+    formRecipe.value.tags.push(newTag.value.trim())
+    newTag.value = ''
+  }
+}
+
+const removeTag = (index: number) => {
+  if (formRecipe.value.tags) {
+    formRecipe.value.tags.splice(index, 1)
+  }
+}
+
+// Ingredient handling
+const addIngredient = () => {
+  formRecipe.value.ingredients.push({
+    quantity: '',
+    unit: null,
+    name: ''
+  })
+}
+
+const removeIngredient = (index: number) => {
+  formRecipe.value.ingredients.splice(index, 1)
+}
+
+// Step handling
+const addInstruction = () => {
+  formRecipe.value.steps.push({
+    description: '',
+    image_url: undefined
+  })
+}
+
+const removeInstruction = (index: number) => {
+  formRecipe.value.steps.splice(index, 1)
+}
+
+const handleFreeChange = () => {
+  if (formRecipe.value.isFree) {
+    formRecipe.value.price = 0
+  }
+  validateField('price')
+}
+
+const handleInstructionImageUpload = async (event: Event, index: number) => {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files[0]) {
+    // Check if user is logged in
+    const token = localStorage.getItem('token')
+    if (!token) {
+      toastRef?.value?.addToast('error', 'Please log in to upload images')
+      router.push('/login')
+      return
+    }
+
+    try {
+      const base64Image = await optimizeImage(input.files[0], {
+        maxWidth: 1920,
+        maxHeight: 1080,
+        quality: 0.8,
+        format: 'webp',
+        outputType: 'base64'
+      }) as string
+
+      const { url } = await api.recipes.uploadImage(base64Image)
+      formRecipe.value.steps[index].image_url = base64Image
+    } catch (error) {
+      console.error('Error uploading step image:', error)
+      toastRef?.value?.addToast('error', 'Failed to upload step image')
+    }
+  }
+}
+
+// Unsaved changes tracking
+const hasUnsavedChanges = () => {
+  if (!initialForm.value) return false
+  return JSON.stringify(formRecipe.value) !== JSON.stringify(initialForm.value)
+}
+
+const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChanges(hasUnsavedChanges)
+</script> 
+
 <template>
   <div class="container mx-auto px-4 py-8">
     <div class="mx-auto max-w-4xl">
@@ -49,7 +501,7 @@
           <div>
             <label class="block text-sm font-medium">Recipe Title</label>
             <input
-              v-model="recipe.title"
+              v-model="formRecipe.title"
               type="text"
               class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
               :class="errors.title ? 'border-red-500' : ''"
@@ -64,7 +516,7 @@
           <div>
             <label class="block text-sm font-medium">Description</label>
             <textarea
-              v-model="recipe.description"
+              v-model="formRecipe.description"
               rows="4"
               class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
               :class="errors.description ? 'border-red-500' : ''"
@@ -85,8 +537,8 @@
               >
                 <div class="text-center">
                   <img
-                    v-if="recipe.featured_image"
-                    :src="recipe.featured_image"
+                    v-if="formRecipe.featured_image"
+                    :src="formRecipe.featured_image"
                     alt="Recipe preview"
                     class="mx-auto mb-4 h-32 w-32 object-cover rounded-lg"
                   />
@@ -117,7 +569,7 @@
             <div>
               <label class="block text-sm font-medium">Prep Time (minutes)</label>
               <input
-                v-model="recipe.preparation_time"
+                v-model="formRecipe.preparation_time"
                 type="number"
                 min="0"
                 class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
@@ -128,7 +580,7 @@
             <div>
               <label class="block text-sm font-medium">Cook Time (minutes)</label>
               <input
-                v-model="recipe.preparation_time"
+                v-model="formRecipe.preparation_time"
                 type="number"
                 min="0"
                 class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
@@ -139,7 +591,7 @@
             <div>
               <label class="block text-sm font-medium">Servings</label>
               <input
-                v-model="recipe.servings"
+                v-model="formRecipe.servings"
                 type="number"
                 min="1"
                 class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
@@ -150,7 +602,7 @@
             <div>
               <label class="block text-sm font-medium">Difficulty</label>
               <select
-                v-model="recipe.difficulty"
+                v-model="formRecipe.difficulty"
                 class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 required
               >
@@ -170,7 +622,7 @@
                 type="button"
                 class="rounded-full px-3 py-1 text-sm"
                 :class="[
-                  recipe.categories.some(c => c.category_id === category.id)
+                  formRecipe.categories.some(c => c.category_id === category.id)
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80',
                 ]"
@@ -186,7 +638,7 @@
             <div class="mt-2">
               <div class="flex flex-wrap gap-2">
                 <div
-                  v-for="(tag, index) in recipe.tags"
+                  v-for="(tag, index) in formRecipe.tags"
                   :key="index"
                   class="flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-sm text-primary-foreground"
                 >
@@ -236,7 +688,7 @@
 
           <div class="space-y-4">
             <div
-              v-for="(ingredient, index) in recipe.ingredients"
+              v-for="(ingredient, index) in formRecipe.ingredients"
               :key="index"
               class="flex items-center gap-4"
             >
@@ -285,7 +737,7 @@
 
           <div class="space-y-6">
             <div
-              v-for="(step, index) in recipe.steps"
+              v-for="(step, index) in formRecipe.steps"
               :key="index"
               class="flex gap-4"
             >
@@ -352,7 +804,7 @@
           <div>
             <label class="block text-sm font-medium">Recipe Notes</label>
             <textarea
-              v-model="recipe.notes"
+              v-model="formRecipe.notes"
               rows="4"
               class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
               placeholder="Add any additional notes, tips, or variations..."
@@ -364,7 +816,7 @@
               <input
                 type="checkbox"
                 id="isFree"
-                v-model="recipe.isFree"
+                v-model="formRecipe.isFree"
                 class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                 @change="handleFreeChange"
               />
@@ -374,11 +826,11 @@
             <div>
               <label class="block text-sm font-medium">Price</label>
               <input
-                v-model="recipe.price"
+                v-model="formRecipe.price"
                 type="number"
                 min="0"
                 step="0.01"
-                :disabled="recipe.isFree"
+                :disabled="formRecipe.isFree"
                 class="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 :class="errors.price ? 'border-red-500' : ''"
                 @blur="validateField('price')"
@@ -412,11 +864,7 @@
             v-else
             type="submit"
             class="ml-auto inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-            :disabled="isLoading"
           >
-            <span v-if="isLoading" class="mr-2">
-              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
-            </span>
             Save Recipe
           </button>
         </div>
@@ -439,403 +887,3 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, reactive, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useFormValidation, rules } from '~/composables/useFormValidation'
-import { useUnsavedChanges } from '~/composables/useUnsavedChanges'
-import { optimizeImage } from '~/utils/imageOptimizer'
-import type { Recipe, Step, Ingredient, UpdateRecipeDto, CreateRecipeDto } from '~/types/recipe'
-import { api } from '~/utils/api'
-import { v4 as uuidv4 } from 'uuid';
-
-
-const route = useRoute()
-const router = useRouter()
-interface ToastRef {
-  value: {
-    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
-  } | null
-}
-const toastRef = inject<ToastRef>('toast')
-const newTag = ref('')
-
-const currentStep = ref(0)
-const isLoading = ref(false)
-const recipe = ref<Recipe>({
-  id: '',
-  title: '',
-  description: '',
-  servings: 1,
-  preparation_time: 0,
-  featured_image: '',
-  price: 0,
-  ingredients: [],
-  isFree: false,
-  steps: [],
-  categories: [],
-  difficulty: 'easy',
-  notes: '',
-  tags: []
-})
-const initialForm = ref<Recipe | null>(null)
-
-const steps = [
-  'Basic Information',
-  'Details',
-  'Categories & Tags',
-  'Ingredients',
-  'Instructions',
-  'Notes'
-]
-
-// Mock data for categories
-interface Category {
-  id: string
-  name: string
-}
-
-const categories: Category[] = [
-  { id: '1', name: 'Breakfast' },
-  { id: '2', name: 'Lunch' },
-  { id: '3', name: 'Dinner' },
-  { id: '4', name: 'Dessert' },
-  { id: '5', name: 'Snacks' },
-  { id: '6', name: 'Vegetarian' },
-  { id: '7', name: 'Vegan' },
-  { id: '8', name: 'Gluten-Free' },
-]
-
-// Validation rules
-const validationRules = {
-  title: [rules.required('Title is required')],
-  description: [rules.required('Description is required')],
-  featured_image: [rules.required('Featured image is required')],
-  preparation_time: [rules.required('Preparation time is required'), rules.min(0)],
-  servings: [rules.required('Number of servings is required'), rules.min(1)],
-  difficulty: [rules.required('Difficulty level is required')],
-  categories: [{
-    validate: (value: typeof recipe.value.categories) => value && value.length > 0,
-    message: 'Please select at least one category'
-  }],
-  ingredients: [{
-    validate: (value: typeof recipe.value.ingredients) => {
-      if (!value || value.length === 0) return false
-      return value.every(ingredient => 
-        ingredient.quantity?.toString().trim() !== '' && 
-        ingredient.name?.trim() !== ''
-      )
-    },
-    message: 'All ingredients must have an amount and name'
-  }],
-  steps: [{
-    validate: (value: typeof recipe.value.steps) => {
-      if (!value || value.length === 0) return false
-      return value.every(step => 
-        step.description?.trim() !== ''
-      )
-    },
-    message: 'All instructions must have a description'
-  }]
-}
-
-// Initialize validation with empty recipe
-const { errors, validateField, validateForm } = useFormValidation(recipe, validationRules)
-
-// Fetch recipe data
-async function fetchRecipe() {
-  try {
-    isLoading.value = true
-    const recipeData = await api.recipes.getBySlug(route.params.slug as string)
-    
-    // Initialize form with recipe data
-    recipe.value = {
-      id: recipeData.id,
-      title: recipeData.title,
-      description: recipeData.description || '',
-      servings: recipeData.servings || 1,
-      preparation_time: recipeData.preparation_time || 0,
-      featured_image: recipeData.featured_image,
-      price: recipeData.price || 0,
-      ingredients: recipeData.ingredients?.map(i => ({
-        quantity: i.quantity,
-        unit: i.unit || null,
-        name: i.name
-      })) || [],
-      steps: recipeData.steps?.map(s => ({
-        description: s.description,
-        image_url: s.image_url || undefined
-      })) || [],
-      notes: '',
-      categories: recipeData.categories?.map(c => ({
-        category_id: c.category_id,
-        name: c.name
-      })) || [],
-      difficulty: recipeData.difficulty || 'easy',
-      tags: []
-    }
-    
-    // Store initial form state for unsaved changes tracking
-    initialForm.value = { ...recipe.value }
-
-  } catch (error) {
-    console.error('Error fetching recipe:', error)
-    toastRef?.value?.addToast('error','Failed to load recipe')
-    router.push('/recipes')
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// Helper function to generate unique IDs
-
-const generateId = () => {
-  return uuidv4(); // Generates a random UUID (Version 4)
-};
-
-// Handle form submission
-const handleSubmit = async () => {
-  const isValid = await validateForm();
-  if (!isValid) return;
-
-  try {
-    isLoading.value = true;
-
-     // Combine categories and tags
-     const allCategories = [
-      ...recipe.value.categories.map(c => {
-        return {
-          category_id: c.category_id,
-          name: c?.name || ''
-        }
-      }),
-      ...(recipe.value.tags ?? []).map(tag => ({
-        category_id: generateId(),
-        name: tag
-      }))
-    ]
-    
-    const updateData: CreateRecipeDto = {
-      title: recipe.value.title,
-      description: recipe.value.description || '',
-      servings: recipe.value.servings || 1,
-      featured_image: recipe.value.featured_image,
-      preparation_time: recipe.value.preparation_time,
-      ingredients: recipe.value.ingredients ? recipe.value.ingredients.map(ingredient => ({
-        ingredient_id: generateId(),
-        quantity: ingredient.quantity,
-        unit: ingredient.unit || null,
-        name: ingredient.name
-      })) : [],
-      steps: recipe.value.steps ? recipe.value.steps.map((step, index) => ({
-        step_number: index + 1,
-        description: step.description,
-        image_url: step.image_url
-      })) : [],
-      images: [],
-      difficulty: recipe.value.difficulty || "",
-      price: recipe.value.price,
-      categories: allCategories,
-    };
-    console.log("updatedData", updateData)
-
-    await api.recipes.update(route.params.slug as string, updateData)
-    
-    toastRef?.value?.addToast('success','Recipe updated successfully')
-    router.push(`/recipes/${recipe.value.id}`)
-  } catch (error) {
-    console.error('Error updating recipe:', error)
-    toastRef?.value?.addToast('error','Failed to update recipe')
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// Navigation between steps
-const getCurrentStepFields = () => {
-  switch (currentStep.value) {
-    case 0:
-      return ['title', 'description', 'featured_image'] as const
-    case 1:
-      return ['preparation_time', 'servings', 'difficulty', 'categories'] as const
-    case 2:
-      return ['ingredients'] as const
-    case 3:
-      return ['steps'] as const
-    case 4:
-      return ['notes', 'price'] as const
-    default:
-      return [] as const
-  }
-}
-
-async function goToNextStep() {
-  const currentFields = getCurrentStepFields()
-  const isValid = currentFields.every(field => {
-    const valid = validateField(field)
-    console.log('Current Fields:', valid)
-    return valid
-  })
-
-
-  if (!isValid) {
-    toastRef?.value?.addToast('error','Please fix the validation errors before proceeding')
-    return
-  }else {
-    if (currentStep.value < steps.length - 1) {
-      currentStep.value++
-    }
-  }
-}
-
-function goToPreviousStep() {
-  if (currentStep.value > 0) {
-    currentStep.value--
-  }
-}
-
-onMounted(() => {
-  fetchRecipe()
-})
-
-// Page meta
-useHead({
-  title: 'Edit Recipe',
-  meta: [
-    {
-      name: 'description',
-      content: 'Update your recipe details and instructions.',
-    },
-  ],
-})
-
-// Image handling
-const handleImageUpload = async (event: Event) => {
-  const input = event.target as HTMLInputElement
-  if (input.files && input.files[0]) {
-    // Check if user is logged in
-    const token = localStorage.getItem('token')
-    if (!token) {
-      toastRef?.value?.addToast('error', 'Please log in to upload images')
-      router.push('/auth/login')
-      return
-    }
-
-    try {
-      const base64Image = await optimizeImage(input.files[0], {
-        maxWidth: 1920,
-        maxHeight: 1080,
-        quality: 0.8,
-        format: 'webp',
-        outputType: 'base64'
-      }) as string
-
-      const { url } = await api.recipes.uploadImage(base64Image)
-      recipe.value.featured_image = base64Image
-      validateField('featured_image')
-    } catch (error) {
-      console.error('Error uploading image:', error)
-      toastRef?.value?.addToast('error', 'Failed to upload image')
-    }
-  }
-}
-
-// Category handling
-const toggleCategory = (category: Category) => {
-  const index = recipe.value.categories.findIndex(c => c.category_id === category.id)
-  if (index === -1) {
-    recipe.value.categories.push({
-      category_id: category.id,
-      name: category.name
-    })
-  } else {
-    recipe.value.categories.splice(index, 1)
-  }
-}
-
-// Tag handling
-const addTag = () => {
-  if (!recipe.value.tags) {
-    recipe.value.tags = []
-  }
-  if (newTag.value.trim() && !recipe.value.tags.includes(newTag.value.trim())) {
-    recipe.value.tags.push(newTag.value.trim())
-    newTag.value = ''
-  }
-}
-
-const removeTag = (index: number) => {
-  if (recipe.value.tags) {
-    recipe.value.tags.splice(index, 1)
-  }
-}
-
-// Ingredient handling
-const addIngredient = () => {
-  recipe.value.ingredients.push({
-    quantity: '',
-    unit: null,
-    name: ''
-  })
-}
-
-const removeIngredient = (index: number) => {
-  recipe.value.ingredients.splice(index, 1)
-}
-
-// Step handling
-const addInstruction = () => {
-  recipe.value.steps.push({
-    description: '',
-    image_url: undefined
-  })
-}
-
-const removeInstruction = (index: number) => {
-  recipe.value.steps.splice(index, 1)
-}
-
-const handleFreeChange = () => {
-  if (recipe.value.isFree) {
-    recipe.value.price = 0
-  }
-  validateField('price')
-}
-
-const handleInstructionImageUpload = async (event: Event, index: number) => {
-  const input = event.target as HTMLInputElement
-  if (input.files && input.files[0]) {
-    // Check if user is logged in
-    const token = localStorage.getItem('token')
-    if (!token) {
-      toastRef?.value?.addToast('error', 'Please log in to upload images')
-      router.push('/login')
-      return
-    }
-
-    try {
-      const base64Image = await optimizeImage(input.files[0], {
-        maxWidth: 1920,
-        maxHeight: 1080,
-        quality: 0.8,
-        format: 'webp',
-        outputType: 'base64'
-      }) as string
-
-      const { url } = await api.recipes.uploadImage(base64Image)
-      recipe.value.steps[index].image_url = base64Image
-    } catch (error) {
-      console.error('Error uploading step image:', error)
-      toastRef?.value?.addToast('error', 'Failed to upload step image')
-    }
-  }
-}
-
-// Unsaved changes tracking
-const hasUnsavedChanges = () => {
-  if (!initialForm.value) return false
-  return JSON.stringify(recipe.value) !== JSON.stringify(initialForm.value)
-}
-
-const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChanges(hasUnsavedChanges)
-</script> 

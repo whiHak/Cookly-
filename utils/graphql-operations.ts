@@ -178,7 +178,6 @@ export const GET_USER_BOOKMARKS = gql`
     }
   }
 `;
-
 // Mutations
 export const CREATE_RECIPE = gql`
   mutation CreateRecipe($input: recipes_insert_input!) {
@@ -197,7 +196,7 @@ export const CREATE_RECIPE = gql`
 `;
 
 export const UPDATE_RECIPE = gql`
-  mutation UpdateRecipe($id: uuid!, $input: recipes_set_input!) {
+  mutation UpdateRecipe($id: String!, $input: recipes_set_input!) {
     update_recipes_by_pk(pk_columns: {id: $id}, _set: $input) {
       id
       title
@@ -444,6 +443,47 @@ export const GET_ALL_CATEGORIES = gql`
     categories {
       id
       name
+    }
+  }
+`;
+
+export const UPDATE_RECIPE_IMAGE = gql`
+  mutation UpdateRecipeImage($id: String!, $input: recipe_images_set_input!) {
+    update_recipe_images_by_pk(pk_columns: {id: $id}, _set: $input) {
+      id
+      image_url
+      is_featured
+    }
+  }
+`;
+
+export const UPDATE_RECIPE_CATEGORY = gql`
+  mutation UpdateRecipeCategory($id: String!, $input: recipe_categories_set_input!) {
+    update_recipe_categories_by_pk(pk_columns: {id: $id}, _set: $input) {
+      id
+      category_id
+    }
+  }
+`;
+
+export const UPDATE_RECIPE_INGREDIENT = gql`
+  mutation UpdateRecipeIngredient($id: String!, $input: recipe_ingredients_set_input!) {
+    update_recipe_ingredients_by_pk(pk_columns: {id: $id}, _set: $input) {
+      id
+      quantity
+      unit
+      ingredient_id
+    }
+  }
+`;
+
+export const UPDATE_RECIPE_STEP = gql`
+  mutation UpdateRecipeStep($id: String!, $input: recipe_steps_set_input!) {
+    update_recipe_steps_by_pk(pk_columns: {id: $id}, _set: $input) {
+      id
+      step_number
+      description
+      image_url
     }
   }
 `; 

@@ -1,4 +1,5 @@
 export interface Ingredient {
+  id?: string
   ingredient_id?: string
   quantity: string
   unit: string | null
@@ -11,6 +12,7 @@ export interface Instruction {
 }
 
 export interface Step {
+  id?: string
   step_number?: number
   description: string
   image_url?: string
@@ -24,14 +26,15 @@ export interface Recipe {
   servings: number
   preparation_time: number
   categories: Array<{
+    id?: string
     category_id: string
     name: string
   }>
-  user?: Array<{
+  user?: {
     id: string
     full_name: string
     username: string
-  }>
+  }
   featured_image: string
   price: number
   created_at?: string
@@ -39,6 +42,7 @@ export interface Recipe {
   steps: Step[]
   ingredients: Ingredient[]
   images?: {
+    id?: string
     image_url: string
     is_featured: boolean
   }[]

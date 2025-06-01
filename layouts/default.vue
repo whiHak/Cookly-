@@ -1,3 +1,149 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue'
+import { useEventListener, onClickOutside } from '@vueuse/core'
+import { useUserStore } from '~/stores/useUserStore'
+import { DEFAULT_AVATAR } from '~/constants'
+import { User, PlusCircle, Settings, LogOut} from 'lucide-vue-next';
+
+interface Recipe {
+  id: number
+  title: string
+  description: string
+  image: string
+}
+
+interface Category {
+  id: number
+  name: string
+}
+
+// Navigation items
+const navigation = [
+  { name: 'Home', href: '/' },
+  { name: 'Recipes', href: '/recipes' },
+  { name: 'Bookmarks', href: '/recipes/bookmarks' },
+]
+
+// Footer links
+const quickLinks = [
+  { name: 'Home', href: '/' },
+  { name: 'Recipes', href: '/recipes' },
+]
+
+// Mock categories (replace with API data)
+const categories = ref<Category[]>([
+  { id: 1, name: 'Italian' },
+  { id: 2, name: 'Asian' },
+  { id: 3, name: 'Mexican' },
+  { id: 4, name: 'Desserts' },
+  { id: 5, name: 'Vegetarian' },
+  { id: 6, name: 'Seafood' },
+])
+
+// Use Nuxt's color mode composable
+const colorMode = useColorMode()
+const isDark = computed(() => colorMode.value === 'dark')
+
+// User store
+const userStore = useUserStore()
+const isAuthenticated = computed(() => userStore.isAuthenticated)
+const user = computed(() => userStore.user)
+
+// State
+const isUserMenuOpen = ref(false)
+const isMobileMenuOpen = ref(false)
+const isSearchOpen = ref(false)
+const searchQuery = ref('')
+const searchResults = ref<Recipe[]>([])
+const isSearching = ref(false)
+const isSubscribing = ref(false)
+const email = ref('')
+
+// Methods
+const toggleTheme = () => {
+  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
+}
+
+const openSearch = () => {
+  isSearchOpen.value = true
+}
+
+const handleSearch = async () => {
+  if (!searchQuery.value) {
+    searchResults.value = []
+    return
+  }
+  
+  isSearching.value = true
+  try {
+    await new Promise(resolve => setTimeout(resolve, 500))
+    searchResults.value = [
+      {
+        id: 1,
+        title: 'Italian Pasta',
+        description: 'Classic Italian pasta with tomato sauce',
+        image: '/images/recipes/pasta.jpg'
+      }
+    ]
+  } finally {
+    isSearching.value = false
+}
+}
+
+const navigateToRecipe = (recipe: Recipe) => {
+  isSearchOpen.value = false
+  navigateTo(`/recipes/${recipe.id}`)
+}
+
+const searchByCategory = (category: Category) => {
+  isSearchOpen.value = false
+  navigateTo(`/recipes?category=${category.name}`)
+}
+
+const handleSubscribe = async () => {
+  if (!email.value) return
+
+  isSubscribing.value = true
+  try {
+    // TODO: Implement newsletter subscription
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    email.value = ''
+    // Show success message
+  } finally {
+    isSubscribing.value = false
+  }
+}
+
+const handleLogout = async () => {
+  userStore.logout()
+  navigateTo('/auth/login')
+  isUserMenuOpen.value = false
+}
+
+// Close user menu when clicking outside
+const menuButtonRef = ref<HTMLElement | null>(null)
+onClickOutside(menuButtonRef, () => {
+  isUserMenuOpen.value = false
+})
+
+// Keyboard shortcuts
+useEventListener(document, 'keydown', (e: KeyboardEvent) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault()
+    openSearch()
+  }
+  if (e.key === 'Escape') {
+    isSearchOpen.value = false
+  }
+})
+
+// Initialize user state from storage
+onMounted(() => {
+  userStore.initializeFromStorage()
+})
+</script> 
+
 <template>
   <div class="min-h-screen flex flex-col">
     <!-- Navigation -->
@@ -111,6 +257,15 @@
                     Profile
                   </NuxtLink>
                   <NuxtLink 
+                    to="/recipes/bookmarks"
+                    class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Bookmark
+                    :size="18"
+                    />
+                    My Bookmarks
+                  </NuxtLink>
+                  <NuxtLink 
                     to="/recipes/create"
                     class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
                   >
@@ -180,7 +335,7 @@
     <!-- Footer -->
     <footer class="border-t bg-muted/50">
       <div class="container py-12 md:py-16">
-        <div class="grid grid-cols-2 gap-8 md:grid-cols-4">
+        <div class="grid grid-cols-2 gap-8 md:grid-cols-3">
           <!-- About -->
           <div class="col-span-2 md:col-span-1">
             <div class="flex items-center gap-2 font-bold text-xl mb-4">
@@ -190,18 +345,6 @@
             <p class="text-sm text-muted-foreground mb-4">
               Share and discover amazing recipes from around the world.
             </p>
-            <div class="flex gap-4">
-              <a 
-                v-for="social in socials"
-                :key="social.name"
-                :href="social.href"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Icon :name="social.icon" class="h-5 w-5" />
-              </a>
-            </div>
           </div>
 
           <!-- Quick Links -->
@@ -234,29 +377,6 @@
             </ul>
           </div>
 
-          <!-- Newsletter -->
-          <div class="col-span-2 md:col-span-1">
-            <h3 class="font-semibold mb-4">Stay Updated</h3>
-            <p class="text-sm text-muted-foreground mb-4">
-              Subscribe to our newsletter for the latest recipes and cooking tips.
-            </p>
-            <form @submit.prevent="handleSubscribe" class="space-y-2">
-              <input 
-                v-model="email"
-                type="email"
-                placeholder="Enter your email"
-                class="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                required
-              />
-              <button 
-                type="submit"
-                class="w-full inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                :disabled="isSubscribing"
-              >
-                {{ isSubscribing ? 'Subscribing...' : 'Subscribe' }}
-              </button>
-            </form>
-          </div>
         </div>
 
         <div class="mt-12 border-t pt-8 text-center text-sm text-muted-foreground">
@@ -354,160 +474,3 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue'
-import { useEventListener, onClickOutside } from '@vueuse/core'
-import { useUserStore } from '~/stores/useUserStore'
-import { DEFAULT_AVATAR } from '~/constants'
-import { User, PlusCircle, Settings, LogOut} from 'lucide-vue-next';
-
-interface Recipe {
-  id: number
-  title: string
-  description: string
-  image: string
-}
-
-interface Category {
-  id: number
-  name: string
-}
-
-// Navigation items
-const navigation = [
-  { name: 'Home', href: '/' },
-  { name: 'Recipes', href: '/recipes' },
-  { name: 'Categories', href: '/categories' },
-  { name: 'About', href: '/about' },
-]
-
-// Footer links
-const quickLinks = [
-  { name: 'Home', href: '/' },
-  { name: 'Recipes', href: '/recipes' },
-  { name: 'Categories', href: '/categories' },
-  { name: 'About Us', href: '/about' },
-  { name: 'Contact', href: '/contact' },
-]
-
-const socials = [
-  { name: 'Facebook', icon: 'lucide:facebook', href: '#' },
-  { name: 'Twitter', icon: 'lucide:twitter', href: '#' },
-  { name: 'Instagram', icon: 'lucide:instagram', href: '#' },
-  { name: 'YouTube', icon: 'lucide:youtube', href: '#' },
-]
-
-// Mock categories (replace with API data)
-const categories = ref<Category[]>([
-  { id: 1, name: 'Italian' },
-  { id: 2, name: 'Asian' },
-  { id: 3, name: 'Mexican' },
-  { id: 4, name: 'Desserts' },
-  { id: 5, name: 'Vegetarian' },
-  { id: 6, name: 'Seafood' },
-])
-
-// Use Nuxt's color mode composable
-const colorMode = useColorMode()
-const isDark = computed(() => colorMode.value === 'dark')
-
-// User store
-const userStore = useUserStore()
-const isAuthenticated = computed(() => userStore.isAuthenticated)
-const user = computed(() => userStore.user)
-
-// State
-const isUserMenuOpen = ref(false)
-const isMobileMenuOpen = ref(false)
-const isSearchOpen = ref(false)
-const searchQuery = ref('')
-const searchResults = ref<Recipe[]>([])
-const isSearching = ref(false)
-const isSubscribing = ref(false)
-const email = ref('')
-
-// Methods
-const toggleTheme = () => {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
-
-const openSearch = () => {
-  isSearchOpen.value = true
-}
-
-const handleSearch = async () => {
-  if (!searchQuery.value) {
-    searchResults.value = []
-    return
-  }
-
-  isSearching.value = true
-  try {
-    // TODO: Implement actual search
-    await new Promise(resolve => setTimeout(resolve, 500))
-    searchResults.value = [
-      {
-        id: 1,
-        title: 'Italian Pasta',
-        description: 'Classic Italian pasta with tomato sauce',
-        image: '/images/recipes/pasta.jpg'
-      }
-    ]
-  } finally {
-    isSearching.value = false
-  }
-}
-
-const navigateToRecipe = (recipe: Recipe) => {
-  isSearchOpen.value = false
-  navigateTo(`/recipes/${recipe.id}`)
-}
-
-const searchByCategory = (category: Category) => {
-  isSearchOpen.value = false
-  navigateTo(`/recipes?category=${category.id}`)
-}
-
-const handleSubscribe = async () => {
-  if (!email.value) return
-
-  isSubscribing.value = true
-  try {
-    // TODO: Implement newsletter subscription
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    email.value = ''
-    // Show success message
-  } finally {
-    isSubscribing.value = false
-  }
-}
-
-const handleLogout = async () => {
-  userStore.logout()
-  navigateTo('/auth/login')
-  isUserMenuOpen.value = false
-}
-
-// Close user menu when clicking outside
-const menuButtonRef = ref<HTMLElement | null>(null)
-onClickOutside(menuButtonRef, () => {
-  isUserMenuOpen.value = false
-})
-
-// Keyboard shortcuts
-useEventListener(document, 'keydown', (e: KeyboardEvent) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-    e.preventDefault()
-    openSearch()
-  }
-  if (e.key === 'Escape') {
-    isSearchOpen.value = false
-  }
-})
-
-// Initialize user state from storage
-onMounted(() => {
-  userStore.initializeFromStorage()
-})
-</script> 
