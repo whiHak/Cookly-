@@ -5,40 +5,6 @@ import {
   GET_ALL_RECIPES,
   GET_ALL_CATEGORIES
 } from '~/utils/graphql-operations'
-import { useRouter, useRoute } from 'vue-router'
-
-interface ToastRef {
-  value?: {
-    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
-  };
-}
-
-interface Recipe {
-  id: string;
-  title: string;
-  description: string;
-  featured_image: string;
-  preparation_time: number;
-  price: number;
-  user: Array<{
-    id: string;
-    full_name: string;
-    username: string;
-  }>;
-  categories: Array<{
-    category_id: string;
-    name: string;
-  }>;
-  rating?: number;
-  isLiked: boolean;
-  isBookmarked: boolean;
-  isPaid: boolean;
-  created_at?: string;
-}
-
-// Router
-const router = useRouter()
-const route = useRoute()
 
 // Pagination state
 const page = ref(1)

@@ -11,11 +11,10 @@ import {
   UPSERT_INGREDIENT,
   UPSERT_CATEGORY,
   GET_ALL_INGREDIENTS,
-  GET_ALL_CATEGORIES
+  GET_ALL_CATEGORIES,
+  CREATE_RECIPE_WITH_ALL
 } from "~/utils/graphql-operations";
-import type { CreateRecipeDto } from "~/types/recipe";
 import { useFormValidation, rules } from "~/composables/useFormValidation";
-import { useUnsavedChanges } from "~/composables/useUnsavedChanges";
 import { optimizeImage } from "~/utils/imageOptimizer";
 
 interface ToastRef {
@@ -29,12 +28,6 @@ interface ToastRef {
 
 const router = useRouter();
 const toastRef = inject<ToastRef>("toast");
-
-// Add router debugging
-router.beforeEach((to, from, next) => {
-  console.log("Router navigation:", { to, from });
-  next();
-});
 
 // State
 const currentStep = ref(0);
@@ -129,22 +122,8 @@ const { errors, validateForm, validateField } = useFormValidation(
   validationRules
 );
 
-// Track unsaved changes
-const initialFormState = JSON.stringify(form.value);
-const hasUnsavedChanges = computed(() => {
-  return JSON.stringify(form.value) !== initialFormState;
-});
-
-const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChanges(
-  () => hasUnsavedChanges.value
-);
-
 // Add after other setup code
-const { mutate: createRecipeMutation } = useMutation(CREATE_RECIPE);
-const { mutate: addRecipeImageMutation } = useMutation(ADD_RECIPE_IMAGE);
-const { mutate: addRecipeCategoryMutation } = useMutation(ADD_RECIPE_CATEGORY);
-const { mutate: addRecipeIngredientMutation } = useMutation(ADD_RECIPE_INGREDIENT);
-const { mutate: addRecipeStepMutation } = useMutation(ADD_RECIPE_STEP);
+const { mutate: createRecipeWithAllMutation } = useMutation(CREATE_RECIPE_WITH_ALL)
 const { result: allIngredientsResult } = useQuery(GET_ALL_INGREDIENTS)
 const { result: allCategoriesResult } = useQuery(GET_ALL_CATEGORIES)
 const { mutate: upsertIngredientMutation } = useMutation(UPSERT_INGREDIENT)
@@ -249,12 +228,11 @@ const handleSubmit = async () => {
     }
 
     let user = null;
-
     if (typeof window !== "undefined") {
       user = JSON.parse(localStorage.getItem("user") || "{}");
     }
-    // Main recipe data (without steps, ingredients, categories, images)
-    const recipeData: any = {
+    // Prepare nested input for the new mutation
+    const recipeInput: any = {
       title: form.value.title,
       description: form.value.description,
       preparation_time: form.value.prepTime + form.value.cookTime,
@@ -263,84 +241,44 @@ const handleSubmit = async () => {
       servings: form.value.servings,
       price: form.value.price,
       user_id: user.id,
+      recipe_categories: {
+        data: allCategories.map((cat) => ({ category_id: categoryIdMap[cat.name] }))
+      },
+      recipe_ingredients: {
+        data: form.value.ingredients.map((ingredient) => ({
+          ingredient_id: ingredientIdMap[ingredient.name],
+          quantity: ingredient.amount,
+          unit: ingredient.unit || null
+        }))
+      },
+      recipe_steps: {
+        data: form.value.instructions.map((instruction, index) => ({
+          step_number: index + 1,
+          description: instruction.description,
+          image_url: instruction.imageUrl || undefined
+        }))
+      },
+      recipe_images: {
+        data: [
+          {
+            image_url: form.value.featuredImage,
+            is_featured: true
+          },
+          ...form.value.instructions
+            .filter((instruction) => instruction.image)
+            .map((instruction) => ({
+              image_url: instruction.image!,
+              is_featured: false
+            }))
+        ]
+      }
     };
-    // Create the recipe
-    const result = await createRecipeMutation({ input: recipeData });
+    // Create the recipe with all nested data
+    const result = await createRecipeWithAllMutation({ input: recipeInput });
     const recipe = result?.data?.insert_recipes_one;
     if (!recipe || !recipe.id) throw new Error("Recipe creation failed");
     const recipeId = recipe.id;
-
-    // Add categories (including tags)
-    for (const cat of allCategories) {
-      try {
-        await addRecipeCategoryMutation({
-          recipe_id: recipeId,
-          category_id: categoryIdMap[cat.name],
-        });
-      } catch (e) {
-        toastRef?.value?.addToast(
-          "error",
-          `Failed to add category: ${cat.name}`
-        );
-      }
-    }
-
-    // Add images (featured + step images)
-    const images = [
-      {
-        image_base64: form.value.featuredImage,
-        is_featured: true,
-      },
-      ...form.value.instructions
-        .filter((instruction) => instruction.image)
-        .map((instruction) => ({
-          image_base64: instruction.image!,
-          is_featured: false,
-        })),
-    ];
-    for (const img of images) {
-      try {
-        await addRecipeImageMutation({
-          recipe_id: recipeId,
-          image_url: img.image_base64,
-          is_featured: img.is_featured,
-        });
-      } catch (e) {
-        toastRef?.value?.addToast("error", "Failed to add image");
-      }
-    }
-
-    // Add ingredients
-    for (const ingredient of form.value.ingredients) {
-      try {
-        await addRecipeIngredientMutation({
-          recipe_id: recipeId,
-          ingredient_id: ingredientIdMap[ingredient.name],
-          quantity: ingredient.amount,
-          unit: ingredient.unit || null,
-        });
-      } catch (e) {
-        toastRef?.value?.addToast(
-          "error",
-          `Failed to add ingredient: ${ingredient.name}`
-        );
-      }
-    }
-
-    // Add steps
-    for (const [index, instruction] of form.value.instructions.entries()) {
-      try {
-        await addRecipeStepMutation({
-          recipe_id: recipeId,
-          step_number: index + 1,
-          description: instruction.description,
-          image_url: instruction.imageUrl || undefined,
-        });
-      } catch (e) {
-        toastRef?.value?.addToast("error", `Failed to add step ${index + 1}`);
-      }
-    }
-
+    
     toastRef?.value?.addToast("success", "Recipe created successfully");
     // Reset the form state to match initial state to prevent unsaved changes dialog
     form.value = {
@@ -360,9 +298,9 @@ const handleSubmit = async () => {
       instructions: [{ description: "", image: "", imageUrl: "" }],
       notes: "",
     };
+
     // Navigate to recipes page
-    window.history.pushState({}, "", `/recipes/${recipeId}`);
-    window.location.reload();
+    await navigateTo(`/recipes/${recipeId}`);
   } catch (error) {
     console.error("Error creating recipe:", error);
     toastRef?.value?.addToast("error", "Failed to create recipe");
@@ -979,14 +917,6 @@ useHead({
     <Toast ref="toast" />
 
     <!-- Unsaved changes dialog -->
-    <ConfirmDialog
-      :show="showDialog"
-      title="Unsaved Changes"
-      message="You have unsaved changes. Are you sure you want to leave?"
-      confirm-text="Leave"
-      cancel-text="Stay"
-      @confirm="confirmNavigation"
-      @cancel="cancelNavigation"
-    />
+    
   </div>
 </template>

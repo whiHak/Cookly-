@@ -13,6 +13,7 @@ import {
   BOOKMARK_RECIPE,
   UNBOOKMARK_RECIPE,
   RATE_RECIPE,
+  DELETE_RECIPE,
 } from "~/utils/graphql-operations";
 
 const API_BASE_URL =

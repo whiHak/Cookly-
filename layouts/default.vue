@@ -4,7 +4,7 @@ import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessu
 import { useEventListener, onClickOutside } from '@vueuse/core'
 import { useUserStore } from '~/stores/useUserStore'
 import { DEFAULT_AVATAR } from '~/constants'
-import { User, PlusCircle, Settings, LogOut} from 'lucide-vue-next';
+import { User, PlusCircle, Settings, LogOut, BookMarked} from 'lucide-vue-next';
 
 interface Recipe {
   id: number
@@ -29,6 +29,7 @@ const navigation = [
 const quickLinks = [
   { name: 'Home', href: '/' },
   { name: 'Recipes', href: '/recipes' },
+  { name: "Bookmarks", href: '/recipes/bookmarks' },
 ]
 
 // Mock categories (replace with API data)
@@ -57,8 +58,6 @@ const isSearchOpen = ref(false)
 const searchQuery = ref('')
 const searchResults = ref<Recipe[]>([])
 const isSearching = ref(false)
-const isSubscribing = ref(false)
-const email = ref('')
 
 // Methods
 const toggleTheme = () => {
@@ -99,20 +98,6 @@ const navigateToRecipe = (recipe: Recipe) => {
 const searchByCategory = (category: Category) => {
   isSearchOpen.value = false
   navigateTo(`/recipes?category=${category.name}`)
-}
-
-const handleSubscribe = async () => {
-  if (!email.value) return
-
-  isSubscribing.value = true
-  try {
-    // TODO: Implement newsletter subscription
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    email.value = ''
-    // Show success message
-  } finally {
-    isSubscribing.value = false
-  }
 }
 
 const handleLogout = async () => {
@@ -248,19 +233,10 @@ onMounted(() => {
                 <!-- Menu Items -->
                 <div class="py-1 mt-1">
                   <NuxtLink 
-                    :to="`/profile/${user?.username || ''}`"
-                    class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <User
-                    :size="18"
-                    />
-                    Profile
-                  </NuxtLink>
-                  <NuxtLink 
                     to="/recipes/bookmarks"
                     class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
                   >
-                    <Bookmark
+                    <BookMarked
                     :size="18"
                     />
                     My Bookmarks
@@ -273,15 +249,6 @@ onMounted(() => {
                     :size="18"
                     />
                     Create Recipe
-                  </NuxtLink>
-                  <NuxtLink 
-                    to="/profile/settings"
-                    class="flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <Settings
-                    :size="18"
-                    />
-                    Settings
                   </NuxtLink>
                   <button 
                     class="flex w-full items-center gap-2 px-2 py-2 text-sm rounded-md text-destructive hover:bg-destructive hover:text-destructive-foreground"
@@ -335,7 +302,7 @@ onMounted(() => {
     <!-- Footer -->
     <footer class="border-t bg-muted/50">
       <div class="container py-12 md:py-16">
-        <div class="grid grid-cols-2 gap-8 md:grid-cols-3">
+        <div class="grid grid-cols-2 gap-8 md:grid-cols-2">
           <!-- About -->
           <div class="col-span-2 md:col-span-1">
             <div class="flex items-center gap-2 font-bold text-xl mb-4">
@@ -348,7 +315,7 @@ onMounted(() => {
           </div>
 
           <!-- Quick Links -->
-          <div>
+          <div class="text-right">
             <h3 class="font-semibold mb-4">Quick Links</h3>
             <ul class="space-y-2">
               <li v-for="link in quickLinks" :key="link.href">
@@ -357,21 +324,6 @@ onMounted(() => {
                   class="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {{ link.name }}
-                </NuxtLink>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Categories -->
-          <div>
-            <h3 class="font-semibold mb-4">Categories</h3>
-            <ul class="space-y-2">
-              <li v-for="category in categories" :key="category.id">
-                <NuxtLink 
-                  :to="`/recipes?category=${category.id}`"
-                  class="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {{ category.name }}
                 </NuxtLink>
               </li>
             </ul>
