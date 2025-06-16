@@ -2,22 +2,9 @@
 import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFormValidation, rules } from '~/composables/useFormValidation'
-import { useUnsavedChanges } from '~/composables/useUnsavedChanges'
 import { optimizeImage } from '~/utils/imageOptimizer'
-import type { Recipe, Step, Ingredient, UpdateRecipeDto, CreateRecipeDto } from '~/types/recipe'
-import { api } from '~/utils/api'
-import { v4 as uuidv4 } from 'uuid';
+import type { Recipe } from '~/types/recipe'
 import { useMutation, useQuery } from '@vue/apollo-composable'
-import {
-  UPDATE_RECIPE,
-  UPDATE_RECIPE_IMAGE,
-  UPDATE_RECIPE_CATEGORY,
-  UPDATE_RECIPE_INGREDIENT,
-  UPDATE_RECIPE_STEP,
-  GET_RECIPE_BY_ID,
-  GET_ALL_INGREDIENTS,
-  GET_ALL_CATEGORIES
-} from '~/utils/graphql-operations'
 
 
 const route = useRoute()
@@ -115,13 +102,7 @@ const validationRules = {
 // Initialize validation with empty recipe
 const { errors, validateField, validateForm } = useFormValidation(formRecipe, validationRules)
 
-const { mutate: updateRecipeMutation } = useMutation(UPDATE_RECIPE)
-const { mutate: updateRecipeImageMutation } = useMutation(UPDATE_RECIPE_IMAGE)
-const { mutate: updateRecipeCategoryMutation } = useMutation(UPDATE_RECIPE_CATEGORY)
-const { mutate: updateRecipeIngredientMutation } = useMutation(UPDATE_RECIPE_INGREDIENT)
-const { mutate: updateRecipeStepMutation } = useMutation(UPDATE_RECIPE_STEP)
-const { result: allIngredientsResult } = useQuery(GET_ALL_INGREDIENTS)
-const { result: allCategoriesResult } = useQuery(GET_ALL_CATEGORIES)
+const { mutate: updateRecipeWithAllMutation } = useMutation(UPDATE_RECIPE_WITH_ALL)
 
 watch(recipeResult, (val) => {
   if (val && val.recipes_by_pk) {
@@ -165,12 +146,6 @@ watch(recipeResult, (val) => {
   }
 })
 
-// Helper function to generate unique IDs
-
-const generateId = () => {
-  return uuidv4(); // Generates a random UUID (Version 4)
-};
-
 // Handle form submission
 const handleSubmit = async () => {
   const isValid = await validateForm();
@@ -190,73 +165,41 @@ const handleSubmit = async () => {
       servings: formRecipe.value.servings,
       price: formRecipe.value.price,
     };
-    // Update the recipe
-    await updateRecipeMutation({ id: formRecipe.value.id, input: updateData })
-    // Update categories (only existing ones)
-    for (const cat of formRecipe.value.categories) {
-      if (cat.id) {
-        try {
-          await updateRecipeCategoryMutation({
-            id: cat.id,
-            input: { category_id: cat.category_id }
-          });
-        } catch (e) {
-          toastRef?.value?.addToast('error', `Failed to update category: ${cat.name}`)
-        }
-      }
-    }
-    // Update images (only existing ones)
-    if (formRecipe.value.images) {
-      for (const img of formRecipe.value.images) {
-        if (img.id) {
-          try {
-            await updateRecipeImageMutation({
-              id: img.id,
-              input: {
-                image_url: img.image_url,
-                is_featured: img.is_featured
-              }
-            });
-          } catch (e) {
-            toastRef?.value?.addToast('error', 'Failed to update image')
-          }
-        }
-      }
-    }
-    // Update ingredients (only existing ones)
-    for (const ingredient of formRecipe.value.ingredients) {
-      if (ingredient.id) {
-        try {
-          await updateRecipeIngredientMutation({
-            id: ingredient.id,
-            input: {
-              quantity: ingredient.quantity,
-              unit: ingredient.unit || null,
-              // ingredient_id: ingredient.ingredient_id || ingredient.id
-            }
-          });
-        } catch (e) {
-          toastRef?.value?.addToast('error', `Failed to update ingredient: ${ingredient.name}`)
-        }
-      }
-    }
-    // Update steps (only existing ones)
-    for (const [index, step] of formRecipe.value.steps.entries()) {
-      if (step.id) {
-        try {
-          await updateRecipeStepMutation({
-            id: step.id,
-            input: {
-              step_number: index + 1,
-              description: step.description,
-              image_url: step.image_url || undefined
-            }
-          });
-        } catch (e) {
-          toastRef?.value?.addToast('error', `Failed to update step ${index + 1}`)
-        }
-      }
-    }
+
+    // Prepare nested data for categories, ingredients, steps, images
+    const categories = formRecipe.value.categories.map(cat => ({
+      category_id: cat.category_id
+    }))
+    const ingredients = formRecipe.value.ingredients.map(ingredient => ({
+      quantity: ingredient.quantity,
+      unit: ingredient.unit || null,
+      ingredient_id: ingredient.ingredient_id || undefined
+    }))
+    const steps = formRecipe.value.steps.map((step, idx) => ({
+      step_number: idx + 1,
+      description: step.description,
+      image_url: step.image_url || undefined
+    }))
+    const images = formRecipe.value.images?.map(img => ({
+      image_url: img.image_url,
+      is_featured: img.is_featured
+    })) || []
+
+    console.log('Submitting recipe with data:', {
+      ...updateData,
+      categories,
+      ingredients,
+      steps,
+      images
+    })
+    await updateRecipeWithAllMutation({
+      id: formRecipe.value.id,
+      input: { ...updateData },
+      categories,
+      ingredients,
+      steps,
+      images
+    })
     toastRef?.value?.addToast('success', 'Recipe updated successfully')
     router.push(`/recipes/${formRecipe.value.id}`)
   } catch (error) {
@@ -340,7 +283,7 @@ const handleImageUpload = async (event: Event) => {
         outputType: 'base64'
       }) as string
 
-      const { url } = await api.recipes.uploadImage(base64Image)
+      // const { url } = await api.recipes.uploadImage(base64Image)
       formRecipe.value.featured_image = base64Image
       validateField('featured_image')
     } catch (error) {
@@ -432,7 +375,7 @@ const handleInstructionImageUpload = async (event: Event, index: number) => {
         outputType: 'base64'
       }) as string
 
-      const { url } = await api.recipes.uploadImage(base64Image)
+      // const { url } = await api.recipes.uploadImage(base64Image)
       formRecipe.value.steps[index].image_url = base64Image
     } catch (error) {
       console.error('Error uploading step image:', error)
@@ -441,13 +384,6 @@ const handleInstructionImageUpload = async (event: Event, index: number) => {
   }
 }
 
-// Unsaved changes tracking
-const hasUnsavedChanges = () => {
-  if (!initialForm.value) return false
-  return JSON.stringify(formRecipe.value) !== JSON.stringify(initialForm.value)
-}
-
-const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChanges(hasUnsavedChanges)
 </script> 
 
 <template>
@@ -875,15 +811,6 @@ const { showDialog, confirmNavigation, cancelNavigation } = useUnsavedChanges(ha
     <Toast ref="toast" />
 
     <!-- Unsaved changes dialog -->
-    <ConfirmDialog
-      :show="showDialog"
-      title="Unsaved Changes"
-      message="You have unsaved changes. Are you sure you want to leave?"
-      confirm-text="Leave"
-      cancel-text="Stay"
-      @confirm="confirmNavigation"
-      @cancel="cancelNavigation"
-    />
   </div>
 </template>
 

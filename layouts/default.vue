@@ -5,13 +5,9 @@ import { useEventListener, onClickOutside } from '@vueuse/core'
 import { useUserStore } from '~/stores/useUserStore'
 import { DEFAULT_AVATAR } from '~/constants'
 import { User, PlusCircle, Settings, LogOut, BookMarked} from 'lucide-vue-next';
+import { useQuery } from '@vue/apollo-composable'
 
-interface Recipe {
-  id: number
-  title: string
-  description: string
-  image: string
-}
+
 
 interface Category {
   id: number
@@ -32,7 +28,7 @@ const quickLinks = [
   { name: "Bookmarks", href: '/recipes/bookmarks' },
 ]
 
-// Mock categories (replace with API data)
+//  categories
 const categories = ref<Category[]>([
   { id: 1, name: 'Italian' },
   { id: 2, name: 'Asian' },
@@ -56,8 +52,7 @@ const isUserMenuOpen = ref(false)
 const isMobileMenuOpen = ref(false)
 const isSearchOpen = ref(false)
 const searchQuery = ref('')
-const searchResults = ref<Recipe[]>([])
-const isSearching = ref(false)
+
 
 // Methods
 const toggleTheme = () => {
@@ -68,29 +63,29 @@ const openSearch = () => {
   isSearchOpen.value = true
 }
 
-const handleSearch = async () => {
-  if (!searchQuery.value) {
-    searchResults.value = []
-    return
-  }
-  
-  isSearching.value = true
-  try {
-    await new Promise(resolve => setTimeout(resolve, 500))
-    searchResults.value = [
-      {
-        id: 1,
-        title: 'Italian Pasta',
-        description: 'Classic Italian pasta with tomato sauce',
-        image: '/images/recipes/pasta.jpg'
-      }
+const variables = computed(() => {
+  let where: any = {}
+  if (searchQuery.value) {
+    where._or = [
+      { title: { _ilike: `%${searchQuery.value}%` } },
+      { description: { _ilike: `%${searchQuery.value}%` } },
+      { recipe_categories: { category: { name: { _ilike: `%${searchQuery.value}%` } } } }
     ]
-  } finally {
-    isSearching.value = false
-}
-}
+  }
+  return {where}
+})
 
-const navigateToRecipe = (recipe: Recipe) => {
+const {result: recipesResult, loading: isSearching, refetch} = useQuery(GET_ALL_RECIPES, variables)
+
+const recipes = computed(() => {
+  if (!recipesResult.value || !recipesResult.value.recipes) {
+    return []
+  }
+  return recipesResult.value.recipes
+})
+
+
+const navigateToRecipe = (recipe: any) => {
   isSearchOpen.value = false
   navigateTo(`/recipes/${recipe.id}`)
 }
@@ -374,19 +369,18 @@ onMounted(() => {
                     type="text"
                     placeholder="Search recipes..."
                     class="w-full rounded-md border bg-background pl-10 pr-4 py-2 text-sm"
-                    @keyup="handleSearch"
                   />
                 </div>
 
-                <div v-if="searchResults.length > 0" class="mt-4 max-h-[60vh] overflow-y-auto">
+                <div v-if="recipes.length > 0" class="mt-4 max-h-[60vh] overflow-y-auto">
                   <div 
-                    v-for="result in searchResults" 
+                    v-for="result in recipes.slice(0,5)" 
                     :key="result.id"
                     class="flex items-center gap-4 p-2 hover:bg-accent rounded-md cursor-pointer"
                     @click="navigateToRecipe(result)"
                   >
                     <img 
-                      :src="result.image" 
+                      :src="result.featured_image" 
                       :alt="result.title"
                       class="h-12 w-12 rounded-md object-cover"
                     />

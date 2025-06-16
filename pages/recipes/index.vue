@@ -231,23 +231,6 @@ useHead({
                       Free
                     </span>
                   </div>
-                  <!-- Like and Bookmark Buttons -->
-                  <!-- <div class="absolute  bottom-4 right-4 flex space-x-2 z-10">
-                    <button
-                      @click.stop="toggleLike(recipe)"
-                      class="rounded-full bg-white p-2.5 w-10 h-12 self-center shadow-md hover:bg-gray-100 transition-colors"
-                      :class="{ 'text-red-500': recipe.isLiked }"
-                    >
-                      <i :class="recipe.isLiked ? 'fas fa-heart' : 'far fa-heart'"></i>
-                    </button>
-                    <button
-                      @click.stop="toggleBookmark(recipe)"
-                      class="rounded-full bg-white p-2.5 w-10 h-12 shadow-md hover:bg-gray-100 transition-colors"
-                      :class="{ 'text-blue-500': recipe.isBookmarked }"
-                    >
-                      <i :class="recipe.isBookmarked ? 'fas fa-bookmark' : 'far fa-bookmark'"></i>
-                    </button>
-                  </div> -->
                   <!-- Dark Gradient Overlay -->
                   <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                 </div>

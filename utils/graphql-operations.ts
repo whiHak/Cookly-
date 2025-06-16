@@ -180,21 +180,6 @@ export const GET_USER_BOOKMARKS = gql`
 `;
 // Mutations
 
-export const UPDATE_RECIPE = gql`
-  mutation UpdateRecipe($id: String!, $input: recipes_set_input!) {
-    update_recipes_by_pk(pk_columns: {id: $id}, _set: $input) {
-      id
-      title
-      description
-      difficulty
-      servings
-      preparation_time
-      featured_image
-      price
-    }
-  }
-`;
-
 export const DELETE_RECIPE = gql`
   mutation DeleteRecipe($id: String!) {
     delete_recipes_by_pk(id: $id) {
@@ -368,47 +353,6 @@ export const GET_ALL_CATEGORIES = gql`
   }
 `;
 
-export const UPDATE_RECIPE_IMAGE = gql`
-  mutation UpdateRecipeImage($id: String!, $input: recipe_images_set_input!) {
-    update_recipe_images_by_pk(pk_columns: {id: $id}, _set: $input) {
-      id
-      image_url
-      is_featured
-    }
-  }
-`;
-
-export const UPDATE_RECIPE_CATEGORY = gql`
-  mutation UpdateRecipeCategory($id: String!, $input: recipe_categories_set_input!) {
-    update_recipe_categories_by_pk(pk_columns: {id: $id}, _set: $input) {
-      id
-      category_id
-    }
-  }
-`;
-
-export const UPDATE_RECIPE_INGREDIENT = gql`
-  mutation UpdateRecipeIngredient($id: String!, $input: recipe_ingredients_set_input!) {
-    update_recipe_ingredients_by_pk(pk_columns: {id: $id}, _set: $input) {
-      id
-      quantity
-      unit
-      ingredient_id
-    }
-  }
-`;
-
-export const UPDATE_RECIPE_STEP = gql`
-  mutation UpdateRecipeStep($id: String!, $input: recipe_steps_set_input!) {
-    update_recipe_steps_by_pk(pk_columns: {id: $id}, _set: $input) {
-      id
-      step_number
-      description
-      image_url
-    }
-  }
-`;
-
 export const CREATE_RECIPE_WITH_ALL = gql`
   mutation CreateRecipeWithAll($input: recipes_insert_input!) {
     insert_recipes_one(object: $input) {
@@ -426,5 +370,56 @@ export const CREATE_RECIPE_WITH_ALL = gql`
       recipe_steps { id step_number description image_url }
       recipe_images { id image_url is_featured }
     }
+  }
+`;
+
+export const UPDATE_RECIPE_WITH_ALL = gql`
+  mutation UpdateRecipeWithAll(
+    $id: String!, $input: recipes_set_input!, $categories:[recipe_categories_insert_input!]!, $ingredients:[recipe_ingredients_insert_input!]! , $steps: [recipe_steps_insert_input!]!, $images: [recipe_images_insert_input!]!) {
+    update_recipes_by_pk(pk_columns: {id: $id}, _set: $input) {
+      id
+      title
+      description
+      difficulty
+      servings
+      preparation_time
+      featured_image
+      price
+    }
+    insert_recipe_categories(
+    objects: $categories,
+  ) {
+    affected_rows
+  }
+
+  insert_recipe_ingredients(
+    objects: $ingredients,
+    on_conflict: {
+      constraint: recipe_ingredients_pkey,
+      update_columns: [quantity, unit]
+    }
+  ) {
+    affected_rows
+  }
+
+  insert_recipe_steps(
+    objects: $steps,
+    on_conflict: {
+      constraint: recipe_steps_pkey,
+      update_columns: [step_number, description, image_url]
+    }
+  ) {
+    affected_rows
+  }
+
+  insert_recipe_images(
+    objects: $images,
+    on_conflict: {
+      constraint: recipe_images_pkey,
+      update_columns: [image_url, is_featured]
+    }
+  ) {
+    affected_rows
+  }
   }
 `; 
