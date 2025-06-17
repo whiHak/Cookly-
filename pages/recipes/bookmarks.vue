@@ -1,29 +1,39 @@
 <script setup lang="ts">
-import { ref, onMounted, inject, watchEffect } from 'vue'
-import { useMutation, useQuery } from '@vue/apollo-composable'
-import { GET_USER_BOOKMARKS, UNBOOKMARK_RECIPE } from '~/utils/graphql-operations'
-import type { Recipe } from '~/types/recipe'
+import { ref, onMounted, inject, watchEffect } from "vue";
+import { useMutation, useQuery } from "@vue/apollo-composable";
+import type { Recipe } from "~/types/recipe";
+import {
+  GetUserBookmarksDocument,
+  UnbookmarkRecipeDocument,
+  type GetUserBookmarksQuery,
+  type GetUserBookmarksQueryVariables,
+  type UnbookmarkRecipeMutation,
+} from "~/graphql/generated/graphql";
 
 interface ToastRef {
   value?: {
-    addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
+    addToast: (
+      type: "success" | "error" | "info" | "warning",
+      message: string
+    ) => void;
   };
 }
 // Stores
-const { mutate: unbookmarkRecipeMutation } = useMutation(UNBOOKMARK_RECIPE);
+const { mutate: unbookmarkRecipeMutation } =
+  useMutation<UnbookmarkRecipeMutation>(UnbookmarkRecipeDocument);
 
 // State
-let bookmarks: Recipe[] = []
-const loading = ref(true)
-const error = ref<string | null>(null)
-const isReady = ref(false)
-const toastRef = inject<ToastRef>('toast')
+let bookmarks: Recipe[] = [];
+const loading = ref(true);
+const error = ref<string | null>(null);
+const isReady = ref(false);
+const toastRef = inject<ToastRef>("toast");
 
 let user: any = null;
 if (typeof window !== "undefined") {
   const userStr = localStorage.getItem("user");
   if (!userStr) {
-    navigateTo('/auth/login');
+    navigateTo("/auth/login");
   }
   if (userStr) {
     user = JSON.parse(userStr);
@@ -31,11 +41,16 @@ if (typeof window !== "undefined") {
 }
 
 // Only run the query if user and user.id exist
-const { result: bookmarksResult, loading: gqlLoading, error: gqlError, refetch } = useQuery(
-  GET_USER_BOOKMARKS,
-  () => user && user.id ? { user_id: user.id } : undefined,
+const {
+  result: bookmarksResult,
+  loading: gqlLoading,
+  error: gqlError,
+  refetch,
+} = useQuery<GetUserBookmarksQuery, GetUserBookmarksQueryVariables>(
+  GetUserBookmarksDocument,
+  () => (user && user.id ? { user_id: user.id }: {user_id: null}),
   { enabled: !!(user && user.id) }
-)
+);
 
 const fetchBookmarks = async () => {
   loading.value = true;
@@ -43,7 +58,7 @@ const fetchBookmarks = async () => {
   try {
     if (!user || !user.id) {
       bookmarks = [];
-      error.value = 'User not found.';
+      error.value = "User not found.";
       return;
     }
     await refetch();
@@ -57,11 +72,12 @@ const fetchBookmarks = async () => {
           difficulty: recipe.difficulty,
           servings: recipe.servings,
           preparation_time: recipe.preparation_time,
-          categories: recipe.recipe_categories?.map((cat: any) => ({
-            id: cat.category?.id,
-            category_id: cat.category?.id,
-            name: cat.category?.name
-          })) || [],
+          categories:
+            recipe.recipe_categories?.map((cat: any) => ({
+              id: cat.category?.id,
+              category_id: cat.category?.id,
+              name: cat.category?.name,
+            })) || [],
           user: recipe.user,
           featured_image: recipe.featured_image,
           price: recipe.price,
@@ -74,7 +90,7 @@ const fetchBookmarks = async () => {
           isPaid: recipe.price > 0,
           isFree: recipe.price === 0,
           notes: recipe.notes,
-          tags: recipe.tags
+          tags: recipe.tags,
         } as Recipe;
       });
     } else {
@@ -82,7 +98,7 @@ const fetchBookmarks = async () => {
     }
     error.value = null;
   } catch (err: any) {
-    error.value = err?.message || 'Failed to fetch bookmarks.';
+    error.value = err?.message || "Failed to fetch bookmarks.";
     bookmarks = [];
   } finally {
     loading.value = false;
@@ -100,23 +116,23 @@ const removeBookmark = async (recipe: Recipe) => {
       user_id: user?.id,
     });
     await fetchBookmarks();
-    toastRef?.value?.addToast('success', 'Recipe removed from bookmarks')
+    toastRef?.value?.addToast("success", "Recipe removed from bookmarks");
   } catch (err) {
-    console.error('Error removing bookmark:', err)
-    toastRef?.value?.addToast('error', 'Failed to remove bookmark')
+    console.error("Error removing bookmark:", err);
+    toastRef?.value?.addToast("error", "Failed to remove bookmark");
   }
-}
+};
 
 // Page meta
 useHead({
-  title: 'My Bookmarks',
+  title: "My Bookmarks",
   meta: [
     {
-      name: 'description',
-      content: 'View your bookmarked recipes.'
-    }
-  ]
-})
+      name: "description",
+      content: "View your bookmarked recipes.",
+    },
+  ],
+});
 </script>
 
 <template>
@@ -131,14 +147,16 @@ useHead({
 
     <!-- Loading State -->
     <div v-if="loading" class="flex justify-center py-12">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div
+        class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"
+      ></div>
     </div>
 
     <!-- Error State -->
     <div v-else-if="error" class="text-center py-12">
       <p class="text-red-500">{{ error }}</p>
-      <button 
-        @click="fetchBookmarks" 
+      <button
+        @click="fetchBookmarks"
         class="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
       >
         Try Again
@@ -149,11 +167,11 @@ useHead({
     <template v-else>
       <!-- Recipe Grid -->
       <div class="mx-auto max-w-screen-xl lg:max-w-[1400px]">
-        <div v-if="bookmarks.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div
-            v-for="recipe in bookmarks"
-            :key="recipe.id"
-          >
+        <div
+          v-if="bookmarks.length > 0"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          <div v-for="recipe in bookmarks" :key="recipe.id">
             <UCard
               class="group hover:shadow-lg transition-shadow h-full"
               @click="navigateTo(`/recipes/${recipe.id}`)"
@@ -167,20 +185,28 @@ useHead({
                   />
                   <!-- Price Badge -->
                   <div class="absolute top-4 right-4 z-10">
-                    <span v-if="recipe.user?.id === user?.id" 
-                          class="bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                    <span
+                      v-if="recipe.user?.id === user?.id"
+                      class="bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md"
+                    >
                       Your Recipe
                     </span>
-                    <span v-else-if="recipe.isPaid" 
-                          class="bg-primary text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                    <span
+                      v-else-if="recipe.isPaid"
+                      class="bg-primary text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md"
+                    >
                       Paid
                     </span>
-                    <span v-else-if="recipe.price > 0" 
-                          class="bg-primary text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                    <span
+                      v-else-if="recipe.price > 0"
+                      class="bg-primary text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md"
+                    >
                       ETB {{ recipe.price }}
                     </span>
-                    <span v-else 
-                          class="bg-gray-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                    <span
+                      v-else
+                      class="bg-gray-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md"
+                    >
                       Free
                     </span>
                   </div>
@@ -194,10 +220,12 @@ useHead({
                     </button>
                   </div>
                   <!-- Dark Gradient Overlay -->
-                  <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                  <div
+                    class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"
+                  ></div>
                 </div>
               </template>
-              
+
               <div class="space-y-2">
                 <div class="flex items-center gap-2">
                   <UBadge
@@ -214,7 +242,9 @@ useHead({
                   </span>
                 </div>
 
-                <h3 class="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-1">
+                <h3
+                  class="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-1"
+                >
                   {{ recipe.title }}
                 </h3>
 
@@ -238,10 +268,7 @@ useHead({
         </div>
 
         <!-- Empty State -->
-        <div
-          v-else
-          class="mt-12 text-center"
-        >
+        <div v-else class="mt-12 text-center">
           <Icon
             name="lucide:bookmark"
             class="mx-auto h-12 w-12 text-muted-foreground"
@@ -262,8 +289,6 @@ useHead({
   </div>
 </template>
 
-
-
 <style scoped>
 .line-clamp-1 {
   display: -webkit-box;
@@ -278,4 +303,4 @@ useHead({
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-</style> 
+</style>

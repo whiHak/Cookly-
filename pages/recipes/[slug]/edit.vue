@@ -5,12 +5,13 @@ import { useFormValidation, rules } from '~/composables/useFormValidation'
 import { optimizeImage } from '~/utils/imageOptimizer'
 import type { Recipe } from '~/types/recipe'
 import { useMutation, useQuery } from '@vue/apollo-composable'
+import { GetRecipeByIdDocument, UpdateRecipeWithAllDocument, type GetRecipeByIdQuery, type GetRecipeByIdQueryVariables, type UpdateRecipeWithAllMutation } from '~/graphql/generated/graphql'
 
 
 const route = useRoute()
 const router = useRouter()
-const recipeId = computed(() => route.params.slug as string)
-const { result: recipeResult, loading: recipeLoading, error: recipeError, refetch: refetchRecipe } = useQuery(GET_RECIPE_BY_ID, { id: recipeId })
+const recipeId = route.params.slug as string
+const { result: recipeResult, loading: recipeLoading, error: recipeError, refetch: refetchRecipe } = useQuery<GetRecipeByIdQuery, GetRecipeByIdQueryVariables>(GetRecipeByIdDocument, { id: recipeId  })
 interface ToastRef {
   value: {
     addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void
@@ -102,7 +103,7 @@ const validationRules = {
 // Initialize validation with empty recipe
 const { errors, validateField, validateForm } = useFormValidation(formRecipe, validationRules)
 
-const { mutate: updateRecipeWithAllMutation } = useMutation(UPDATE_RECIPE_WITH_ALL)
+const { mutate: updateRecipeWithAllMutation } = useMutation<UpdateRecipeWithAllMutation>(UpdateRecipeWithAllDocument)
 
 watch(recipeResult, (val) => {
   if (val && val.recipes_by_pk) {

@@ -1,16 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, inject } from "vue";
+import { ref, inject } from "vue";
 import { useRouter } from "vue-router";
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import {
-  UPSERT_INGREDIENT,
-  UPSERT_CATEGORY,
-  GET_ALL_INGREDIENTS,
-  GET_ALL_CATEGORIES,
-  CREATE_RECIPE_WITH_ALL
-} from "~/utils/graphql-operations";
 import { useFormValidation, rules } from "~/composables/useFormValidation";
 import { optimizeImage } from "~/utils/imageOptimizer";
+import { CreateRecipeWithAllDocument, GetAllCategoriesDocument, GetAllIngredientsDocument, UpsertCategoryDocument, UpsertIngredientDocument, type CreateRecipeWithAllMutation, type GetAllCategoriesQuery, type GetAllIngredientsQuery, type UpsertCategoryMutation, type UpsertIngredientMutation } from "~/graphql/generated/graphql";
 
 interface ToastRef {
   value: {
@@ -118,11 +112,11 @@ const { errors, validateForm, validateField } = useFormValidation(
 );
 
 // Add after other setup code
-const { mutate: createRecipeWithAllMutation } = useMutation(CREATE_RECIPE_WITH_ALL)
-const { result: allIngredientsResult } = useQuery(GET_ALL_INGREDIENTS)
-const { result: allCategoriesResult } = useQuery(GET_ALL_CATEGORIES)
-const { mutate: upsertIngredientMutation } = useMutation(UPSERT_INGREDIENT)
-const { mutate: upsertCategoryMutation } = useMutation(UPSERT_CATEGORY)
+const { mutate: createRecipeWithAllMutation } = useMutation<CreateRecipeWithAllMutation>(CreateRecipeWithAllDocument)
+const { result: allIngredientsResult } = useQuery<GetAllIngredientsQuery>(GetAllIngredientsDocument)
+const { result: allCategoriesResult } = useQuery<GetAllCategoriesQuery>(GetAllCategoriesDocument)
+const { mutate: upsertIngredientMutation } = useMutation<UpsertIngredientMutation>(UpsertIngredientDocument)
+const { mutate: upsertCategoryMutation } = useMutation<UpsertCategoryMutation>(UpsertCategoryDocument)
 
 // Methods
 const nextStep = () => {
@@ -213,13 +207,13 @@ const handleSubmit = async () => {
     // Prepare upserted ingredients
     const ingredientIdMap: Record<string, string> = {};
     for (const ingredient of form.value.ingredients) {
-      let existing = (allIngredientsResult.value?.ingredients || []).find((i: { name: string }) => i.name.toLowerCase() === ingredient.name.toLowerCase())
-      let id = existing ? existing.id : uuid()
+      let existing = (allIngredientsResult.value?.ingredients || []).find((i) => 
+        i.name?.toLowerCase() === ingredient.name.toLowerCase()
+      );
+      let id = existing ? existing.id : uuid();
       if (!existing) {
-        const upserted = await upsertIngredientMutation({ id, name: ingredient.name })
-        id = upserted?.data?.insert_ingredients_one?.id || id
+        const upserted = await upsertIngredientMutation({ id, name: ingredient.name });
       }
-      ingredientIdMap[ingredient.name] = id
     }
 
     let user = null;

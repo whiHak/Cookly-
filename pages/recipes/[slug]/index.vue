@@ -4,17 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useQuery, useMutation } from "@vue/apollo-composable";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { DEFAULT_AVATAR } from "~/constants";
-import {
-  GET_RECIPE_BY_ID,
-  COMMENT_ON_RECIPE,
-  GET_RECIPE_COMMENTS,
-  LIKE_RECIPE,
-  UNLIKE_RECIPE,
-  BOOKMARK_RECIPE,
-  UNBOOKMARK_RECIPE,
-  RATE_RECIPE,
-  DELETE_RECIPE,
-} from "~/utils/graphql-operations";
+import { BookmarkRecipeDocument, CommentOnRecipeDocument, DeleteRecipeDocument, GetRecipeByIdDocument, GetRecipeCommentsDocument, LikeRecipeDocument, RateRecipeDocument, UnbookmarkRecipeDocument, UnlikeRecipeDocument, type BookmarkRecipeMutation, type CommentOnRecipeMutation, type DeleteRecipeMutation, type GetRecipeByIdQuery, type GetRecipeByIdQueryVariables, type LikeRecipeMutation, type RateRecipeMutation, type UnbookmarkRecipeMutation, type UnlikeRecipeMutation } from "~/graphql/generated/graphql";
 
 const API_BASE_URL =
   process.env.NUXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -48,13 +38,13 @@ const {
   loading,
   error,
   refetch,
-} = useQuery(GET_RECIPE_BY_ID, { id: recipeId });
+} = useQuery<GetRecipeByIdQuery, GetRecipeByIdQueryVariables>(GetRecipeByIdDocument, { id: recipeId as string });
 let recipe: any = null;
 
 // Comments Query
 const { result: commentsResult, refetch: refetchComments } = useQuery(
-  GET_RECIPE_COMMENTS,
-  { recipe_id: recipeId }
+  GetRecipeCommentsDocument,
+  { recipe_id: recipeId as string }
 );
 const comments = computed(() =>
   (commentsResult.value?.recipe_comments || []).map((comment: any) => ({
@@ -71,13 +61,13 @@ const comments = computed(() =>
 );
 
 // Mutations
-const { mutate: commentOnRecipe } = useMutation(COMMENT_ON_RECIPE);
-const { mutate: likeRecipeMutation } = useMutation(LIKE_RECIPE);
-const { mutate: unlikeRecipeMutation } = useMutation(UNLIKE_RECIPE);
-const { mutate: bookmarkRecipeMutation } = useMutation(BOOKMARK_RECIPE);
-const { mutate: unbookmarkRecipeMutation } = useMutation(UNBOOKMARK_RECIPE);
-const { mutate: rateRecipeMutation } = useMutation(RATE_RECIPE);
-const { mutate: deleteRecipeMutation } = useMutation(DELETE_RECIPE);
+const { mutate: commentOnRecipe } = useMutation<CommentOnRecipeMutation>(CommentOnRecipeDocument);
+const { mutate: likeRecipeMutation } = useMutation<LikeRecipeMutation>(LikeRecipeDocument);
+const { mutate: unlikeRecipeMutation } = useMutation<UnlikeRecipeMutation>(UnlikeRecipeDocument);
+const { mutate: bookmarkRecipeMutation } = useMutation<BookmarkRecipeMutation>(BookmarkRecipeDocument);
+const { mutate: unbookmarkRecipeMutation } = useMutation<UnbookmarkRecipeMutation>(UnbookmarkRecipeDocument);
+const { mutate: rateRecipeMutation } = useMutation<RateRecipeMutation>(RateRecipeDocument);
+const { mutate: deleteRecipeMutation } = useMutation<DeleteRecipeMutation>(DeleteRecipeDocument);
 
 // Rating, Like, and Bookmark State
 const userRating = ref(0);
@@ -86,20 +76,6 @@ const localBookmarked = ref(false);
 
 const isLiked = computed(() => localLiked.value);
 const isBookmarked = computed(() => localBookmarked.value);
-
-const likeCount = computed(
-  () => recipe?.recipe_likes_aggregate?.aggregate?.count || 0
-);
-const avgRating = computed(
-  () =>
-    recipe?.recipe_ratings_aggregate?.aggregate?.avg?.rating?.toFixed(
-      1
-    ) || "0.0"
-);
-const ratingCount = computed(
-  () => recipe?.recipe_ratings_aggregate?.aggregate?.count || 0
-);
-
 // State for comments
 const newComment = ref("");
 
@@ -544,7 +520,7 @@ onMounted(async () => {
                   <input
                     type="hidden"
                     name="public_key"
-                    value="CHAPUBK_TEST-bEr7C7ifcgqhVpmYURbJC1YhTydaVrHc"
+                    value=""
                   />
                   <input type="hidden" name="tx_ref" :value="getTxRef()" />
                   <input type="hidden" name="amount" :value="recipe.price" />
@@ -699,7 +675,7 @@ onMounted(async () => {
             <input
               type="hidden"
               name="public_key"
-              value="CHAPUBK_TEST-bEr7C7ifcgqhVpmYURbJC1YhTydaVrHc"
+              value=""
             />
             <input type="hidden" name="tx_ref" :value="getTxRef()" />
             <input type="hidden" name="amount" :value="recipe.price" />

@@ -1,36 +1,16 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '~/stores/useUserStore'
 import { useMutation, useQuery, useApolloClient, provideApolloClient  } from '@vue/apollo-composable'
-import { LOGIN_MUTATION, REGISTER_MUTATION, GET_USER_PROFILE } from '~/utils/graphql-auth'
-import type { FetchResult } from '@apollo/client/core'
+import { GetUserProfileDocument, LoginDocument, RegisterDocument, type GetUserProfileQuery, type LoginMutation, type RegisterMutation } from '~/graphql/generated/graphql'
 
-interface User {
-  id: string
-  username: string
-  email: string
-  full_name: string
-}
-
-interface AuthResponse {
-  token: string
-  user: User
-}
-
-interface LoginData {
-  login: AuthResponse
-}
-
-interface RegisterData {
-  register: AuthResponse
-}
 
 export const useAuth = () => {
   const userStore = useUserStore()
   const client = useApolloClient().client
 
   provideApolloClient(client)
-  const { mutate: loginMutation } = useMutation<LoginData>(LOGIN_MUTATION)
-  const { mutate: registerMutation } = useMutation<RegisterData>(REGISTER_MUTATION)
+  const { mutate: loginMutation } = useMutation<LoginMutation>(LoginDocument)
+  const { mutate: registerMutation } = useMutation<RegisterMutation>(RegisterDocument)
 
   // Register user
   const register = async (userData: {
@@ -53,11 +33,11 @@ export const useAuth = () => {
 
       const response = result.data.register
       userStore.login({
-        token: response.token,
-        userID: response.user.id,
-        username: response.user.username,
-        email: response.user.email,
-        fullName: response.user.full_name,
+        token: response?.token || '',
+        userID: response?.user.id || '',
+        username: response?.user.username || '',
+        email: response?.user.email || '',
+        fullName: response?.user.full_name || '',
       })
 
       return response
@@ -82,11 +62,11 @@ export const useAuth = () => {
 
       const response = result.data.login
       userStore.login({
-        token: response.token,
-        userID: response.user.id,
-        username: response.user.username,
-        email: response.user.email,
-        fullName: response.user.full_name,
+        token: response?.token || '',
+        userID: response?.user.id || '',
+        username: response?.user.username || '',
+        email: response?.user.email || '',
+        fullName: response?.user.full_name || '',
       })
 
       return response
@@ -102,7 +82,7 @@ export const useAuth = () => {
   }
 
   // Get user profile
-  const { result: userProfile, loading: loadingProfile } = useQuery(GET_USER_PROFILE)
+  const { result: userProfile, loading: loadingProfile } = useQuery<GetUserProfileQuery>(GetUserProfileDocument)
 
   return {
     user: computed(() => userStore.user),

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useQuery } from "@vue/apollo-composable";
+import { GetAllRecipesDocument, type GetAllRecipesQuery, type GetAllRecipesQueryVariables } from "~/graphql/generated/graphql";
 
-const { result: featuredRecipesResult, loading: featuredRecipesLoading, error: featuredRecipesError } = useQuery(GET_ALL_RECIPES, {
+const { result: featuredRecipesResult, loading: featuredRecipesLoading, error: featuredRecipesError } = useQuery<GetAllRecipesQuery, GetAllRecipesQueryVariables>(GetAllRecipesDocument, {
   limit: 3,
 })
 const featuredRecipes = computed(() => {
@@ -10,35 +11,6 @@ const featuredRecipes = computed(() => {
   }
   return featuredRecipesResult.value.recipes
 })
-
-// Mock categories (replace with API data)
-// const categories = ref([
-//   {
-//     id: "italian",
-//     name: "Italian",
-//     image_url: "/images/categories/italy.jpeg",
-//   },
-//   {
-//     id: "asian",
-//     name: "Asian",
-//     image_url: "/images/categories/asian.jpg",
-//   },
-//   {
-//     id: "mexican",
-//     name: "Mexican",
-//     image_url: "/images/categories/mexican.jpg",
-//   },
-//   {
-//     id: "Lunch",
-//     name: "Ethipian",
-//     image_url: "/images/doro.jpg",
-//   },
-//   {
-//     id: "vegetarian",
-//     name: "Vegetarian",
-//     image_url: "/images/categories/vegi.jpg",
-//   },
-// ]);
 
 
 // Page meta
@@ -141,7 +113,6 @@ useHead({
               <div class="space-y-2">
                 <div class="flex items-center gap-2">
                   <UBadge
-                    :color="recipe?.recipe_categories[0]?.category?.color as any"
                     variant="subtle"
                     size="sm"
                   >
@@ -165,15 +136,15 @@ useHead({
                 <div class="flex items-center justify-between pt-2">
                   <div class="flex items-center gap-2">
                     <UAvatar
-                      :src="recipe.user.full_name"
-                      :alt="recipe.user.username"
+                      :src="recipe?.user?.full_name ?? undefined"
+                      :alt="recipe?.user?.username"
                       size="sm"
                     />
-                    <span class="text-sm">{{ recipe.user.full_name }}</span>
+                    <span class="text-sm">{{ recipe.user?.full_name }}</span>
                   </div>
                   <div class="flex items-center gap-1">
                     <Icon name="lucide:star" class="w-4 h-4 text-yellow-400" />
-                    <span class="text-sm">{{ recipe.recipe_ratings_aggregate.aggregate.avg.rating || 0 }}</span>
+                    <span class="text-sm">{{ recipe.recipe_ratings_aggregate.aggregate?.avg?.rating || 0 }}</span>
                   </div>
                 </div>
               </div>

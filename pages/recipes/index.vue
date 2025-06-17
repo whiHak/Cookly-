@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, inject } from 'vue'
 import { useQuery } from '@vue/apollo-composable'
-import {
-  GET_ALL_RECIPES,
-  GET_ALL_CATEGORIES
-} from '~/utils/graphql-operations'
+import { GetAllCategoriesDocument, GetAllRecipesDocument, type GetAllCategoriesQuery, type GetAllRecipesQuery, type GetAllRecipesQueryVariables } from '~/graphql/generated/graphql'
 
 // Pagination state
 const page = ref(1)
@@ -24,7 +21,7 @@ if (typeof window !== "undefined") {
 }
 
 // Apollo query for categories (for filter dropdown)
-const { result: categoriesResult } = useQuery(GET_ALL_CATEGORIES)
+const { result: categoriesResult } = useQuery<GetAllCategoriesQuery>(GetAllCategoriesDocument)
 
 // Apollo query for recipes
 const variables = computed(() => {
@@ -54,7 +51,7 @@ const variables = computed(() => {
   }
 })
 
-const { result: recipesResult, loading: gqlLoading, error: gqlError, refetch } = useQuery(GET_ALL_RECIPES, variables)
+const { result: recipesResult, loading: gqlLoading, error: gqlError, refetch } = useQuery<GetAllRecipesQuery, GetAllRecipesQueryVariables>(GetAllRecipesDocument, variables)
 
 const recipes = computed(() => {
   if (!recipesResult.value || !recipesResult.value.recipes) {
@@ -218,11 +215,11 @@ useHead({
                           class="bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
                       Your Recipe
                     </span>
-                    <span v-else-if="recipe.isPaid" 
+                    <!-- <span v-else-if="recipe.isPaid" 
                           class="bg-primary text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
                       Paid
-                    </span>
-                    <span v-else-if="recipe.price > 0" 
+                    </span> -->
+                    <span v-else-if="recipe.price != null && recipe.price > 0" 
                           class="bg-primary text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
                       ETB {{ recipe.price }}
                     </span>
@@ -239,7 +236,7 @@ useHead({
               <div class="space-y-2">
                 <div class="flex items-center gap-2">
                   <UBadge
-                    v-if="recipe.recipe_categories[0].category.name"
+                    v-if="recipe.recipe_categories[0]?.category?.name"
                     color="primary"
                     variant="subtle"
                     size="sm"
@@ -263,13 +260,13 @@ useHead({
                 <div class="flex items-center justify-between pt-2">
                   <div class="flex items-center gap-2">
                     <UAvatar
-                      :src="recipe.user?.full_name"
-                      :alt="recipe.user?.full_name"
+                      :src="recipe.user?.full_name ?? ''"
+                      :alt="recipe.user?.full_name ?? ''"
                       size="sm"
                     />
                     <span class="text-sm">
-                      {{ recipe.user.full_name }}
-                      <span v-if="user?.fullName === recipe.user.full_name" 
+                      {{ recipe.user?.full_name }}
+                      <span v-if="user?.fullName === recipe.user?.full_name" 
                             class="text-gray-500">(You)</span>
                     </span>
                   </div>

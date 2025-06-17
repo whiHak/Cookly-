@@ -6,6 +6,7 @@ import { useUserStore } from '~/stores/useUserStore'
 import { DEFAULT_AVATAR } from '~/constants'
 import { User, PlusCircle, Settings, LogOut, BookMarked} from 'lucide-vue-next';
 import { useQuery } from '@vue/apollo-composable'
+import { GetAllRecipesDocument, type GetAllCategoriesQueryVariables, type GetAllRecipesQuery } from '~/graphql/generated/graphql'
 
 
 
@@ -75,7 +76,7 @@ const variables = computed(() => {
   return {where}
 })
 
-const {result: recipesResult, loading: isSearching, refetch} = useQuery(GET_ALL_RECIPES, variables)
+const {result: recipesResult, loading: isSearching, refetch} = useQuery<GetAllRecipesQuery, GetAllCategoriesQueryVariables>(GetAllRecipesDocument, variables)
 
 const recipes = computed(() => {
   if (!recipesResult.value || !recipesResult.value.recipes) {
