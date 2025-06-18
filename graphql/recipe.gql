@@ -176,10 +176,9 @@
     }
   }
 
-  mutation LikeRecipe($recipe_id: String!, $user_id: String!) {
+  mutation LikeRecipe($recipe_id: String!) {
     insert_recipe_likes_one(object: {
       recipe_id: $recipe_id,
-      user_id: $user_id
     }) {
       id
       recipe {
@@ -192,10 +191,9 @@
     }
   }
 
-  mutation UnlikeRecipe($recipe_id: String!, $user_id: String!) {
+  mutation UnlikeRecipe($recipe_id: String!) {
     delete_recipe_likes(where: {
       recipe_id: {_eq: $recipe_id},
-      user_id: {_eq: $user_id}
     }) {
       affected_rows
       returning {
@@ -210,28 +208,25 @@
     }
   }
 
-  mutation BookmarkRecipe($recipe_id: String!, $user_id: String!) {
+  mutation BookmarkRecipe($recipe_id: String!) {
     insert_recipe_bookmarks_one(object: {
       recipe_id: $recipe_id,
-      user_id: $user_id
     }) {
       id
     }
   }
 
-  mutation UnbookmarkRecipe($recipe_id: String!, $user_id: String!) {
+  mutation UnbookmarkRecipe($recipe_id: String!) {
     delete_recipe_bookmarks(where: {
       recipe_id: {_eq: $recipe_id},
-      user_id: {_eq: $user_id}
     }) {
       affected_rows
     }
   }
 
-  mutation RateRecipe($recipe_id: String!, $user_id: String!, $rating: Int!) {
+  mutation RateRecipe($recipe_id: String!, $rating: Int!) {
     insert_recipe_ratings_one(object: {
       recipe_id: $recipe_id,
-      user_id: $user_id,
       rating: $rating
     }, on_conflict: {
       constraint: recipe_ratings_pkey,
@@ -252,10 +247,9 @@
     }
   }
 
-  mutation CommentOnRecipe($recipe_id: String!, $user_id: String!, $content: String!) {
+  mutation CommentOnRecipe($recipe_id: String!, $content: String!) {
     insert_recipe_comments_one(object: {
       recipe_id: $recipe_id,
-      user_id: $user_id,
       content: $content
     }) {
       id
@@ -329,7 +323,6 @@
       preparation_time
       featured_image
       price
-      user_id
       recipe_categories { id category { id name } }
       recipe_ingredients { id quantity unit ingredient { id name } }
       recipe_steps { id step_number description image_url }

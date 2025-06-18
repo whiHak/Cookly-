@@ -98,7 +98,6 @@ const rateRecipe = async (rating: number) => {
     userRating.value = rating;
     await rateRecipeMutation({
       recipe_id: recipeId,
-      user_id: user.id,
       rating,
     });
     refetch();
@@ -117,12 +116,10 @@ const toggleLike = async () => {
     if (localLiked.value) {
       await likeRecipeMutation({
         recipe_id: recipeId,
-        user_id: user?.id,
       });
     } else {
       await unlikeRecipeMutation({
         recipe_id: recipeId,
-        user_id: user?.id,
       });
     }
     await fetchRecipe();
@@ -145,12 +142,10 @@ const toggleBookmark = async () => {
     if (localBookmarked.value) {
       await bookmarkRecipeMutation({
         recipe_id: recipeId,
-        user_id: user?.id,
       });
     } else {
       await unbookmarkRecipeMutation({
         recipe_id: recipeId,
-        user_id: user?.id,
       });
     }
     await fetchRecipe();
@@ -172,7 +167,6 @@ const postComment = async () => {
   try {
     await commentOnRecipe({
       recipe_id: recipeId,
-      user_id: user?.id,
       content: newComment.value,
     });
     newComment.value = "";

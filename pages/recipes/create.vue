@@ -229,7 +229,6 @@ const handleSubmit = async () => {
       difficulty: form.value.difficulty,
       servings: form.value.servings,
       price: form.value.price,
-      user_id: user.id,
       recipe_categories: {
         data: allCategories.map((cat) => ({ category_id: categoryIdMap[cat.name] }))
       },
