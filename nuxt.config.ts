@@ -15,10 +15,8 @@ export default defineNuxtConfig({
     '@vueuse/motion/nuxt',
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
-    // '@nuxtjs/apollo',
-    // '@vue/apollo-composable',
+    "@uploadthing/nuxt",
   ],
-  
   colorMode: {
     preference: 'dark',
     fallback: 'dark',

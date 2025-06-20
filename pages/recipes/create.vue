@@ -3,8 +3,18 @@ import { ref, inject } from "vue";
 import { useRouter } from "vue-router";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import { useFormValidation, rules } from "~/composables/useFormValidation";
-import { optimizeImage } from "~/utils/imageOptimizer";
-import { CreateRecipeWithAllDocument, GetAllCategoriesDocument, GetAllIngredientsDocument, UpsertCategoryDocument, UpsertIngredientDocument, type CreateRecipeWithAllMutation, type GetAllCategoriesQuery, type GetAllIngredientsQuery, type UpsertCategoryMutation, type UpsertIngredientMutation } from "~/graphql/generated/graphql";
+import {
+  CreateRecipeWithAllDocument,
+  GetAllCategoriesDocument,
+  GetAllIngredientsDocument,
+  UpsertCategoryDocument,
+  UpsertIngredientDocument,
+  type CreateRecipeWithAllMutation,
+  type GetAllCategoriesQuery,
+  type GetAllIngredientsQuery,
+  type UpsertCategoryMutation,
+  type UpsertIngredientMutation,
+} from "~/graphql/generated/graphql";
 
 interface ToastRef {
   value: {
@@ -22,7 +32,6 @@ const toastRef = inject<ToastRef>("toast");
 const currentStep = ref(0);
 const isSubmitting = ref(false);
 const newTag = ref("");
-
 
 const steps = ["Basic Info", "Details", "Ingredients", "Instructions", "Notes"];
 
@@ -112,11 +121,19 @@ const { errors, validateForm, validateField } = useFormValidation(
 );
 
 // Add after other setup code
-const { mutate: createRecipeWithAllMutation } = useMutation<CreateRecipeWithAllMutation>(CreateRecipeWithAllDocument)
-const { result: allIngredientsResult } = useQuery<GetAllIngredientsQuery>(GetAllIngredientsDocument)
-const { result: allCategoriesResult } = useQuery<GetAllCategoriesQuery>(GetAllCategoriesDocument)
-const { mutate: upsertIngredientMutation } = useMutation<UpsertIngredientMutation>(UpsertIngredientDocument)
-const { mutate: upsertCategoryMutation } = useMutation<UpsertCategoryMutation>(UpsertCategoryDocument)
+const { mutate: createRecipeWithAllMutation } =
+  useMutation<CreateRecipeWithAllMutation>(CreateRecipeWithAllDocument);
+const { result: allIngredientsResult } = useQuery<GetAllIngredientsQuery>(
+  GetAllIngredientsDocument
+);
+const { result: allCategoriesResult } = useQuery<GetAllCategoriesQuery>(
+  GetAllCategoriesDocument
+);
+const { mutate: upsertIngredientMutation } =
+  useMutation<UpsertIngredientMutation>(UpsertIngredientDocument);
+const { mutate: upsertCategoryMutation } = useMutation<UpsertCategoryMutation>(
+  UpsertCategoryDocument
+);
 
 // Methods
 const nextStep = () => {
@@ -181,11 +198,11 @@ const handleSubmit = async () => {
     // Prepare upserted categories
     const allCategories = [
       ...form.value.categories.map((categoryId) => {
-        const category = categories.find((c) => c.id === categoryId)
+        const category = categories.find((c) => c.id === categoryId);
         return {
           id: categoryId,
-          name: category?.name || ""
-        }
+          name: category?.name || "",
+        };
       }),
       ...form.value.tags.map((tag) => ({
         id: uuid(),
@@ -195,24 +212,29 @@ const handleSubmit = async () => {
     // Upsert categories and get their IDs
     const categoryIdMap: Record<string, string> = {};
     for (const cat of allCategories) {
-      let existing = (allCategoriesResult.value?.categories || []).find((c: { name: string }) => c.name.toLowerCase() === cat.name.toLowerCase())
-      let id = existing ? existing.id : cat.id
+      let existing = (allCategoriesResult.value?.categories || []).find(
+        (c: { name: string }) => c.name.toLowerCase() === cat.name.toLowerCase()
+      );
+      let id = existing ? existing.id : cat.id;
       if (!existing) {
-        const upserted = await upsertCategoryMutation({ id, name: cat.name })
-        id = upserted?.data?.insert_categories_one?.id || id
+        const upserted = await upsertCategoryMutation({ id, name: cat.name });
+        id = upserted?.data?.insert_categories_one?.id || id;
       }
-      categoryIdMap[cat.name] = id
+      categoryIdMap[cat.name] = id;
     }
 
     // Prepare upserted ingredients
     const ingredientIdMap: Record<string, string> = {};
     for (const ingredient of form.value.ingredients) {
-      let existing = (allIngredientsResult.value?.ingredients || []).find((i) => 
-        i.name?.toLowerCase() === ingredient.name.toLowerCase()
+      let existing = (allIngredientsResult.value?.ingredients || []).find(
+        (i) => i.name?.toLowerCase() === ingredient.name.toLowerCase()
       );
       let id = existing ? existing.id : uuid();
       if (!existing) {
-        const upserted = await upsertIngredientMutation({ id, name: ingredient.name });
+        const upserted = await upsertIngredientMutation({
+          id,
+          name: ingredient.name,
+        });
       }
     }
 
@@ -230,43 +252,45 @@ const handleSubmit = async () => {
       servings: form.value.servings,
       price: form.value.price,
       recipe_categories: {
-        data: allCategories.map((cat) => ({ category_id: categoryIdMap[cat.name] }))
+        data: allCategories.map((cat) => ({
+          category_id: categoryIdMap[cat.name],
+        })),
       },
       recipe_ingredients: {
         data: form.value.ingredients.map((ingredient) => ({
           ingredient_id: ingredientIdMap[ingredient.name],
           quantity: ingredient.amount,
-          unit: ingredient.unit || null
-        }))
+          unit: ingredient.unit || null,
+        })),
       },
       recipe_steps: {
         data: form.value.instructions.map((instruction, index) => ({
           step_number: index + 1,
           description: instruction.description,
-          image_url: instruction.imageUrl || undefined
-        }))
+          image_url: instruction.imageUrl || undefined,
+        })),
       },
       recipe_images: {
         data: [
           {
             image_url: form.value.featuredImage,
-            is_featured: true
+            is_featured: true,
           },
           ...form.value.instructions
             .filter((instruction) => instruction.image)
             .map((instruction) => ({
               image_url: instruction.image!,
-              is_featured: false
-            }))
-        ]
-      }
+              is_featured: false,
+            })),
+        ],
+      },
     };
     // Create the recipe with all nested data
     const result = await createRecipeWithAllMutation({ input: recipeInput });
     const recipe = result?.data?.insert_recipes_one;
     if (!recipe || !recipe.id) throw new Error("Recipe creation failed");
     const recipeId = recipe.id;
-    
+
     toastRef?.value?.addToast("success", "Recipe created successfully");
     // Reset the form state to match initial state to prevent unsaved changes dialog
     form.value = {
@@ -307,66 +331,34 @@ function uuid(): string {
   });
 }
 
-const handleImageUpload = async (event: Event) => {
-  const input = event.target as HTMLInputElement;
-  if (input.files && input.files[0]) {
-    // Check if user is logged in
-    const token = localStorage.getItem("token");
-    if (!token) {
-      toastRef?.value?.addToast("error", "Please log in to upload images");
-      router.push("/auth/login");
-      return;
-    }
+const handleImageUpload = async (
+  event: Event,
+  is_featured: boolean,
+  index?: number
+) => {
+  const input = event.target as any;
+  const files = Array.from(input.files) as File[];
 
-    try {
-      const base64Image = (await optimizeImage(input.files[0], {
-        maxWidth: 1920,
-        maxHeight: 1080,
-        quality: 0.8,
-        format: "webp",
-        outputType: "base64",
-      })) as string;
+  const { startUpload } = useUploadThing("imageUploader", {
+    onClientUploadComplete(res) {
+      if (res && res.length > 0) {
+        const uploadedUrl = res[0].ufsUrl;
+        if (is_featured) {
+          form.value.featuredImage = uploadedUrl;
+        } else if (index !== undefined && form.value.instructions[index]) {
+          form.value.instructions[index].imageUrl = uploadedUrl;
+        } else {
+          console.error("Index is undefined for step image upload");
+        }
+      } else {
+        console.error("No upload response received");
+      }
+    },
+  });
 
-      // const { url } = await api.recipes.uploadImage(base64Image);
-      form.value.featuredImage = base64Image;
-      // form.value.featuredImageUrl = url;
-      validateField("featuredImage");
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      toastRef?.value?.addToast("error", "Failed to upload image");
-    }
-  }
+  await startUpload(files);
 };
 
-const handleStepImageUpload = async (event: Event, stepIndex: number) => {
-  const input = event.target as HTMLInputElement;
-  if (input.files && input.files[0]) {
-    // Check if user is logged in
-    const token = localStorage.getItem("token");
-    if (!token) {
-      toastRef?.value?.addToast("error", "Please log in to upload images");
-      router.push("/login");
-      return;
-    }
-
-    try {
-      const base64Image = (await optimizeImage(input.files[0], {
-        maxWidth: 1920,
-        maxHeight: 1080,
-        quality: 0.8,
-        format: "webp",
-        outputType: "base64",
-      })) as string;
-
-      // const { url } = await api.recipes.uploadImage(base64Image);
-      form.value.instructions[stepIndex].image = base64Image;
-      // form.value.instructions[stepIndex].imageUrl = url;
-    } catch (error) {
-      console.error("Error uploading step image:", error);
-      toastRef?.value?.addToast("error", "Failed to upload step image");
-    }
-  }
-};
 
 const toggleCategory = (categoryId: string) => {
   const index = form.value.categories.indexOf(categoryId);
@@ -535,7 +527,7 @@ useHead({
                   type="file"
                   accept="image/*"
                   class="absolute inset-0 cursor-pointer opacity-0"
-                  @change="handleImageUpload"
+                  @change="handleImageUpload($event, true)"
                 />
               </div>
             </div>
@@ -771,11 +763,11 @@ useHead({
                   <div class="mt-1">
                     <div
                       class="relative aspect-[16/9] overflow-hidden rounded-lg border-2 border-dashed"
-                      :class="step.image ? 'border-primary' : 'border-muted'"
+                      :class="step.imageUrl ? 'border-primary' : 'border-muted'"
                     >
                       <img
-                        v-if="step.image"
-                        :src="step.image"
+                        v-if="step.imageUrl"
+                        :src="step.imageUrl"
                         :alt="`Step ${index + 1}`"
                         class="h-full w-full object-cover"
                       />
@@ -797,7 +789,7 @@ useHead({
                         type="file"
                         accept="image/*"
                         class="absolute inset-0 cursor-pointer opacity-0"
-                        @change="(e) => handleStepImageUpload(e, index)"
+                        @change="(e) => handleImageUpload(e, false, index)"
                       />
                     </div>
                   </div>
@@ -905,6 +897,5 @@ useHead({
     <Toast ref="toast" />
 
     <!-- Unsaved changes dialog -->
-    
   </div>
 </template>
